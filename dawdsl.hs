@@ -23,25 +23,27 @@ mergeFiles :: FilePath -> FilePath -> FilePath -> IO ()
 mergeFiles a b output =
     execCommand "sox" ["-m", a, b, output]
 
-data ProgF a = Bind Op (Audio -> a)
+data ProgF a = File AudioType FilePath (Audio -> a)
+             | Bind Op (Audio -> a)
 
-data Op = MP3File FilePath
-        | FlacFile FilePath
-        | SoxFX String Audio
+data Op = SoxFX String Audio
         | Merge Audio Audio
 
 instance Functor ProgF where
+    fmap f (File typ path k) = File typ path (f . k)
     fmap f (Bind op k) = Bind op (f . k)
 
 type Prog a = Free ProgF a
 
+data AudioType = Mp3
+               | Flac
+    deriving (Show)
+
 data Audio = Audio FilePath
+    deriving (Show)
 
-flacFile :: FilePath -> Prog Audio
-flacFile fp = liftF $ Bind (FlacFile fp) id
-
-mp3File :: FilePath -> Prog Audio
-mp3File fp = liftF $ Bind (MP3File fp) id
+sourceFile :: AudioType -> FilePath -> Prog Audio
+sourceFile typ fp = liftF $ File typ fp id
 
 soxFX :: String -> Audio -> Prog Audio
 soxFX fx a = liftF $ Bind (SoxFX fx a) id
@@ -71,21 +73,27 @@ nextTemp = go 0
 
 p :: Prog Audio
 p = do
-    acap <- mp3File "katy.mp3"
-    instr <- flacFile "walkonby.flac"
+    acap <- sourceFile Mp3 "katy.mp3"
+    instr <- sourceFile Flac "walkonby.flac"
     warpedAcap <- warpAudio (133 / 125) acap
     shiftedAcap <- shiftAudio 5.899 warpedAcap
     gainAcap <- gainAudio (-3) shiftedAcap
     mergeAudio instr gainAcap
 
 interpretOp :: Op -> FilePath -> IO ()
-interpretOp (MP3File path) temp = decodeMp3 path temp
-interpretOp (FlacFile path) temp = decodeFlac path temp
 interpretOp (SoxFX fx (Audio input)) temp = applySoxFx input temp fx
 interpretOp (Merge (Audio a) (Audio b)) temp = mergeFiles a b temp
 
+decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
+decodeFile Mp3 = decodeMp3
+decodeFile Flac = decodeFlac
+
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
+run (Free (File typ path k)) = do
+    temp <- nextTemp
+    decodeFile typ path temp
+    run $ k $ Audio temp
 run (Free (Bind op k)) = do
     temp <- nextTemp
     interpretOp op temp
@@ -93,12 +101,14 @@ run (Free (Bind op k)) = do
 
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
-steps (Free (Bind (MP3File _) k)) = "decode mp3" : steps (k (Audio undefined))
-steps (Free (Bind (FlacFile _) k)) = "decode flac" : steps (k (Audio undefined))
-steps (Free (Bind (SoxFX fx _) k)) = ("soxfx " ++ fx) : steps (k (Audio undefined))
-steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k (Audio undefined))
+steps (Free (File typ _ k)) = ("decode " ++ show typ) : steps (k noAudio)
+steps (Free (Bind (SoxFX fx _) k)) = ("soxfx " ++ fx) : steps (k noAudio)
+steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
+
+noAudio :: Audio
+noAudio = undefined
 
 main :: IO ()
 main = do
-    Audio f <- run p
+    f <- run p
     print f
