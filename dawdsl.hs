@@ -10,13 +10,17 @@ decodeFlac :: FilePath -> FilePath -> IO ()
 decodeFlac input output =
     void $ system $ "flac -f --decode " ++ input ++ " -o " ++ output
 
+applySoxFx :: FilePath -> FilePath -> String -> IO ()
+applySoxFx input output fx = do
+    void $ system $ "sox " ++ input ++ " " ++ output ++ " " ++ fx
+
 warpFile :: FilePath -> Double -> FilePath -> IO ()
 warpFile input ratio output = do
-    void $ system $ "sox " ++ input ++ " " ++ output ++ " speed " ++ show ratio
+    applySoxFx input output $ "speed " ++ show ratio
 
 shiftFile :: FilePath -> Double -> FilePath -> IO ()
 shiftFile input amount output = do
-    void $ system $ "sox " ++ input ++ " " ++ output ++ " pad " ++ show amount
+    applySoxFx input output $ "pad " ++ show amount
 
 mergeFiles :: FilePath -> FilePath -> FilePath -> IO ()
 mergeFiles a b output =
@@ -24,7 +28,7 @@ mergeFiles a b output =
 
 gainFile :: FilePath -> Double -> FilePath -> IO ()
 gainFile input amount output =
-    void $ system $ "sox " ++ input ++ " " ++ output ++ " gain " ++ show amount
+    applySoxFx input output $ "gain " ++ show amount
 
 warpRatio :: Double
 warpRatio = newBPM / oldBPM
@@ -57,6 +61,7 @@ main0 = do
 
 data ProgF a = MP3File FilePath (Audio -> a)
              | FlacFile FilePath (Audio -> a)
+             | SoxFX String a
              | Warp Double a
              | Shift Double a
              | Gain Double a
@@ -65,6 +70,7 @@ data ProgF a = MP3File FilePath (Audio -> a)
 instance Functor ProgF where
     fmap f (MP3File path k) = MP3File path (f . k)
     fmap f (FlacFile path k) = FlacFile path (f . k)
+    fmap f (SoxFX fx k) = SoxFX fx (f k)
     fmap f (Warp ratio k) = Warp ratio (f k)
     fmap f (Shift a k) = Shift a (f k)
     fmap f (Gain a k) = Gain a (f k)
@@ -111,6 +117,11 @@ run (Free (FlacFile path k)) = do
     let temp = "decodeflac." ++ path ++ ".wav"
     decodeFlac path temp
     run $ k $ Audio temp
+run (Free (SoxFX fx k)) = do
+    Audio input <- run k
+    let temp = "fx" ++ fx ++ "." ++ input
+    applySoxFx input temp fx
+    return $ Audio temp
 run (Free (Warp amount k)) = do
     Audio input <- run k
     let temp = "warp" ++ show amount ++ "." ++ input
@@ -137,6 +148,7 @@ steps :: Prog Audio -> [String]
 steps (Pure _) = undefined
 steps (Free (MP3File _ k)) = "decode mp3" : steps (k (Audio undefined))
 steps (Free (FlacFile _ k)) = "decode flac" : steps (k (Audio undefined))
+steps (Free (SoxFX fx r)) = ("sox fx " ++ fx) : steps r
 steps (Free (Warp amount r)) = ("warp " ++ show amount) : steps r
 steps (Free (Shift amount r)) = ("shift " ++ show amount) : steps r
 steps (Free (Gain amount r)) = ("gain " ++ show amount) : steps r
