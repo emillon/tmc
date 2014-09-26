@@ -19,20 +19,6 @@ mergeFiles :: FilePath -> FilePath -> FilePath -> IO ()
 mergeFiles a b output =
     void $ system $ "sox -m " ++ a ++ " " ++ b ++ " " ++ output
 
-warpRatio :: Double
-warpRatio = newBPM / oldBPM
-    where
-        newBPM = instruBPM
-        oldBPM = acapBPM
-        acapBPM = 125
-        instruBPM = 133
-
-shiftAmount :: Double
-shiftAmount = 5.899
-
-gainAmount :: Double
-gainAmount = -3
-
 data ProgF a = MP3File FilePath (Audio -> a)
              | FlacFile FilePath (Audio -> a)
              | SoxFX String Audio (Audio -> a)
@@ -84,9 +70,9 @@ p :: Prog Audio
 p = do
     acap <- mp3File "katy.mp3"
     instr <- flacFile "walkonby.flac"
-    warpedAcap <- warpAudio warpRatio acap
-    shiftedAcap <- shiftAudio shiftAmount warpedAcap
-    gainAcap <- gainAudio gainAmount shiftedAcap
+    warpedAcap <- warpAudio (133 / 125) acap
+    shiftedAcap <- shiftAudio 5.899 warpedAcap
+    gainAcap <- gainAudio (-3) shiftedAcap
     mergeAudio instr gainAcap
 
 run :: Prog Audio -> IO Audio
