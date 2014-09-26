@@ -15,21 +15,9 @@ applySoxFx :: FilePath -> FilePath -> String -> IO ()
 applySoxFx input output fx =
     void $ system $ "sox " ++ input ++ " " ++ output ++ " " ++ fx
 
-warpFile :: FilePath -> Double -> FilePath -> IO ()
-warpFile input ratio output = do
-    applySoxFx input output $ "speed " ++ show ratio
-
-shiftFile :: FilePath -> Double -> FilePath -> IO ()
-shiftFile input amount output =
-    applySoxFx input output $ "pad " ++ show amount
-
 mergeFiles :: FilePath -> FilePath -> FilePath -> IO ()
 mergeFiles a b output =
     void $ system $ "sox -m " ++ a ++ " " ++ b ++ " " ++ output
-
-gainFile :: FilePath -> Double -> FilePath -> IO ()
-gainFile input amount output =
-    applySoxFx input output $ "gain " ++ show amount
 
 warpRatio :: Double
 warpRatio = newBPM / oldBPM
@@ -44,21 +32,6 @@ shiftAmount = 5.899
 
 gainAmount :: Double
 gainAmount = -3
-
-main0 :: IO ()
-main0 = do
-    let acapFile = "katy.wav"
-        instruFile = "walkonby.wav"
-        warpedAcapFile = "katyW.wav"
-        shiftedAcapFile = "katyWS.wav"
-        gainAcapFile = "katyWSG.wav"
-        resultFile = "res.wav"
-    decodeMp3 "katy.mp3" acapFile
-    decodeFlac "walkonby.flac" instruFile
-    warpFile acapFile warpRatio warpedAcapFile
-    shiftFile warpedAcapFile shiftAmount shiftedAcapFile
-    gainFile shiftedAcapFile gainAmount gainAcapFile
-    mergeFiles gainAcapFile instruFile resultFile
 
 data ProgF a = MP3File FilePath (Audio -> a)
              | FlacFile FilePath (Audio -> a)
@@ -130,15 +103,10 @@ run (Free (SoxFX fx (Audio input) k)) = do
     temp <- nextTemp
     applySoxFx input temp fx
     run $ k $ Audio temp
-    return $ Audio temp
-        where
-            replaceSpc ' ' = '_'
-            replaceSpc c = c
 run (Free (Merge (Audio a) (Audio b) k)) = do
     temp <- nextTemp
     mergeFiles a b temp
     run $ k $ Audio temp
-    return $ Audio temp
 
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
