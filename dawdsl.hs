@@ -3,21 +3,25 @@ import Control.Monad.Free
 import System.Cmd
 import System.Directory
 
+execCommand :: String -> [String] -> IO ()
+execCommand cmd args =
+    void $ rawSystem cmd args
+
 decodeMp3 :: FilePath -> FilePath -> IO ()
 decodeMp3 input output =
-    void $ system $ "lame --decode " ++ input ++ " " ++ output
+    execCommand "lame" ["--decode", input, output]
 
 decodeFlac :: FilePath -> FilePath -> IO ()
 decodeFlac input output =
-    void $ system $ "flac -f --decode " ++ input ++ " -o " ++ output
+    execCommand "flac" ["-f", "--decode", input, "-o", output]
 
 applySoxFx :: FilePath -> FilePath -> String -> IO ()
 applySoxFx input output fx =
-    void $ system $ "sox " ++ input ++ " " ++ output ++ " " ++ fx
+    execCommand "sox" $ [input, output] ++ words fx
 
 mergeFiles :: FilePath -> FilePath -> FilePath -> IO ()
 mergeFiles a b output =
-    void $ system $ "sox -m " ++ a ++ " " ++ b ++ " " ++ output
+    execCommand "sox" ["-m", a, b, output]
 
 data ProgF a = MP3File FilePath (Audio -> a)
              | FlacFile FilePath (Audio -> a)
