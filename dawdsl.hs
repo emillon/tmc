@@ -48,7 +48,7 @@ soxFX :: String -> Audio -> Prog Audio
 soxFX fx a = liftF $ SoxFX fx a id
 
 warpAudio :: Double -> Audio -> Prog Audio
-warpAudio ratio = soxFX $ "speed " ++ show ratio
+warpAudio ratio = soxFX $ "tempo " ++ show ratio
 
 shiftAudio :: Double -> Audio -> Prog Audio
 shiftAudio amount = soxFX $ "pad " ++ show amount
