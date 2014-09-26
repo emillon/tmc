@@ -106,4 +106,6 @@ steps (Free (SoxFX fx _ k)) = ("soxfx " ++ fx) : steps (k (Audio undefined))
 steps (Free (Merge _ _ k)) = "merge" : steps (k (Audio undefined))
 
 main :: IO ()
-main = void $ run p
+main = do
+    Audio f <- run p
+    print f
