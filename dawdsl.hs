@@ -7,22 +7,6 @@ execCommand :: String -> [String] -> IO ()
 execCommand cmd args =
     void $ rawSystem cmd args
 
-decodeMp3 :: FilePath -> FilePath -> IO ()
-decodeMp3 input output =
-    execCommand "lame" ["--decode", input, output]
-
-decodeFlac :: FilePath -> FilePath -> IO ()
-decodeFlac input output =
-    execCommand "flac" ["-f", "--decode", input, "-o", output]
-
-applySoxFx :: FilePath -> FilePath -> String -> IO ()
-applySoxFx input output fx =
-    execCommand "sox" $ [input, output] ++ words fx
-
-mergeFiles :: FilePath -> FilePath -> FilePath -> IO ()
-mergeFiles a b output =
-    execCommand "sox" ["-m", a, b, output]
-
 data ProgF a = File AudioType FilePath (Audio -> a)
              | Bind Op (Audio -> a)
 
@@ -81,12 +65,16 @@ p = do
     mergeAudio instr gainAcap
 
 interpretOp :: Op -> FilePath -> IO ()
-interpretOp (SoxFX fx (Audio input)) temp = applySoxFx input temp fx
-interpretOp (Merge (Audio a) (Audio b)) temp = mergeFiles a b temp
+interpretOp (SoxFX fx (Audio input)) temp =
+    execCommand "sox" $ [input, temp] ++ words fx
+interpretOp (Merge (Audio a) (Audio b)) temp =
+    execCommand "sox" ["-m", a, b, temp]
 
 decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
-decodeFile Mp3 = decodeMp3
-decodeFile Flac = decodeFlac
+decodeFile Mp3 input output =
+    execCommand "lame" ["--decode", input, output]
+decodeFile Flac input output =
+    execCommand "flac" ["-f", "--decode", input, "-o", output]
 
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
