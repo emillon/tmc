@@ -62,18 +62,12 @@ main0 = do
 data ProgF a = MP3File FilePath (Audio -> a)
              | FlacFile FilePath (Audio -> a)
              | SoxFX String a
-             | Warp Double a
-             | Shift Double a
-             | Gain Double a
              | Merge a a
 
 instance Functor ProgF where
     fmap f (MP3File path k) = MP3File path (f . k)
     fmap f (FlacFile path k) = FlacFile path (f . k)
     fmap f (SoxFX fx k) = SoxFX fx (f k)
-    fmap f (Warp ratio k) = Warp ratio (f k)
-    fmap f (Shift a k) = Shift a (f k)
-    fmap f (Gain a k) = Gain a (f k)
     fmap f (Merge a b) = Merge (f a) (f b)
 
 type Prog a = Free ProgF a
@@ -87,13 +81,13 @@ mp3File :: FilePath -> Prog Audio
 mp3File fp = liftF $ MP3File fp id
 
 warpAudio :: Double -> Audio -> Prog Audio
-warpAudio ratio = liftF . Warp ratio
+warpAudio ratio = liftF . SoxFX ("speed " ++ show ratio)
 
 shiftAudio :: Double -> Audio -> Prog Audio
-shiftAudio amount = liftF . Shift amount
+shiftAudio amount = liftF . SoxFX ("pad " ++ show amount)
 
 gainAudio :: Double -> Audio -> Prog Audio
-gainAudio amount = liftF . Gain amount
+gainAudio amount = liftF . SoxFX ("gain " ++ show amount)
 
 mergeAudio :: Audio -> Audio -> Prog Audio
 mergeAudio a b = liftF $ Merge a b
@@ -122,21 +116,6 @@ run (Free (SoxFX fx k)) = do
     let temp = "fx" ++ fx ++ "." ++ input
     applySoxFx input temp fx
     return $ Audio temp
-run (Free (Warp amount k)) = do
-    Audio input <- run k
-    let temp = "warp" ++ show amount ++ "." ++ input
-    warpFile input amount temp
-    return $ Audio temp
-run (Free (Shift amount k)) = do
-    Audio input <- run k
-    let temp = "shift" ++ show amount ++ "." ++ input
-    shiftFile input amount temp
-    return $ Audio temp
-run (Free (Gain amount k)) = do
-    Audio input <- run k
-    let temp = "gain" ++ show amount ++ "." ++ input
-    gainFile input amount temp
-    return $ Audio temp
 run (Free (Merge ka kb)) = do
     Audio a <- run ka
     Audio b <- run kb
@@ -149,9 +128,6 @@ steps (Pure _) = undefined
 steps (Free (MP3File _ k)) = "decode mp3" : steps (k (Audio undefined))
 steps (Free (FlacFile _ k)) = "decode flac" : steps (k (Audio undefined))
 steps (Free (SoxFX fx r)) = ("sox fx " ++ fx) : steps r
-steps (Free (Warp amount r)) = ("warp " ++ show amount) : steps r
-steps (Free (Shift amount r)) = ("shift " ++ show amount) : steps r
-steps (Free (Gain amount r)) = ("gain " ++ show amount) : steps r
 steps (Free (Merge _ _)) = ["merge"]
 
 main :: IO ()
