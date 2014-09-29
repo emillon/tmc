@@ -16,6 +16,7 @@ module Prog ( Prog
             , opStart
             ) where
 
+import Control.Applicative
 import Control.Monad.Free
 
 data AudioType = Mp3
@@ -76,19 +77,19 @@ audioTrack :: Track -> Prog Audio
 audioTrack t = liftF $ File t id
 
 opBPM :: Op -> Maybe Double
-opBPM (OpSoxFX (SoxTempo ratio) a) = do
-    bpm <- aBPM a
-    return $ ratio * bpm
-opBPM (OpSoxFX (SoxPad _) a) = aBPM a
-opBPM (OpSoxFX (SoxGain _) a) = aBPM a
+opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
 opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
 
+soxBPM :: SoxFX -> Double -> Double
+soxBPM (SoxTempo ratio) x = ratio * x
+soxBPM (SoxPad _) x = x
+soxBPM (SoxGain _) x = x
+
 opStart :: Op -> Maybe Double
-opStart (OpSoxFX (SoxTempo ratio ) a) = do
-    start <- aStart a
-    return $ ratio * start
-opStart (OpSoxFX (SoxPad shift) a) = do
-    start <- aStart a
-    return $ start + shift
-opStart (OpSoxFX (SoxGain _) a) = aStart a
+opStart (OpSoxFX sfx a) = soxStart sfx <$> aStart a
 opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
+
+soxStart :: SoxFX -> Double -> Double
+soxStart (SoxTempo ratio) x = ratio * x
+soxStart (SoxPad shift) x = shift + x
+soxStart (SoxGain _) x = x
