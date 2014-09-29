@@ -11,11 +11,16 @@ module Prog ( Prog
             , shiftAudio
             , gainAudio
             , mergeAudio
+            , synth
+            , silence
+            , sequenceAudio
+            , seqList
             , Track(..)
             , audioTrack
             , opBPM
             , opStart
             , opCo
+            , metronome
             ) where
 
 import Control.Applicative
@@ -86,6 +91,22 @@ data Track = Track { trackFormat :: AudioType
 audioTrack :: Track -> Prog Audio
 audioTrack t = liftF $ (Source $ File t) id
 
+synth :: Double -> Double -> Prog Audio
+synth freq dur = liftF $ (Source $ Synth freq dur) id
+
+silence :: Double -> Prog Audio
+silence dur = liftF $ (Source $ Silence dur) id
+
+sequenceAudio :: Audio -> Audio -> Prog Audio
+sequenceAudio a b = liftF $ Bind (Sequence a b) id
+
+seqList :: [Audio] -> Prog Audio
+seqList [] = error "seqList"
+seqList [a] = return a
+seqList (a:as) = do
+    r <- seqList as
+    sequenceAudio a r
+
 opBPM :: Op -> Maybe Double
 opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
 opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
@@ -116,3 +137,17 @@ opCo :: Op -> CObject
 opCo (OpSoxFX sfx a) = coMake ("SoxFX (" ++ unwords (soxCompile sfx) ++ ")") [a]
 opCo (Merge a b) = coMake "Merge" [a, b]
 opCo (Sequence a b) = coMake "Sequence" [a, b]
+
+metronome :: Double -> Int -> Prog Audio
+metronome bpm nbars = do
+    hiBeep <- synth hiFreq beepLen
+    sil <- silence silenceLen
+    loBeep <- synth loFreq beepLen
+    bar <- seqList [hiBeep, sil, loBeep, sil, loBeep, sil, loBeep, sil]
+    seqList $ replicate nbars bar
+        where
+            beepLen = 0.1
+            hiFreq = 2 * loFreq
+            loFreq = 440
+            silenceLen = beatLen - beepLen
+            beatLen = 60 / bpm

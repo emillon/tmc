@@ -33,7 +33,7 @@ genSynth freq dur output =
 
 genSilence :: Double -> FilePath -> IO ()
 genSilence dur output =
-    execCommand "sox" [output, "trim", "0", show dur]
+    execCommand "sox" ["-n", output, "trim", "0", show dur]
 
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
