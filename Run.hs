@@ -34,7 +34,7 @@ decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
 decodeFile Mp3 input output =
     execCommand "lame" ["--decode", input, output]
 decodeFile Flac input output =
-    execCommand "flac" ["-f", "--decode", input, "-o", output]
+    execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
 
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
