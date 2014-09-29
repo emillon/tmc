@@ -66,6 +66,7 @@ mergeAudio a b = liftF $ Bind (Merge a b) id
 data Track = Track { trackFormat :: AudioType
                    , trackPath :: FilePath
                    , trackBPM :: Double
+                   , trackStart :: Double
                    }
 
 audioTrack :: Track -> Prog Audio
