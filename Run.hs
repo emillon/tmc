@@ -31,6 +31,10 @@ genSynth :: Double -> Double -> FilePath -> IO ()
 genSynth freq dur output =
     execCommand "sox" ["-n", output, "synth", show dur, "sine", show freq]
 
+genSilence :: Double -> FilePath -> IO ()
+genSilence dur output =
+    execCommand "sox" [output, "trim", "0", show dur]
+
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
 run (Free (Source (File track) k)) = do
@@ -49,6 +53,12 @@ run (Free (Source (Synth freq dur) k)) = do
                      }
     temp <- cached co $ genSynth freq dur
     run $ k $ Audio co temp Nothing (Just 0)
+run (Free (Source (Silence dur) k)) = do
+    let co = CObject { coOp = "Silence (" ++ show dur ++ ")"
+                     , coDeps = []
+                     }
+    temp <- cached co $ genSilence dur
+    run $ k $ Audio co temp Nothing Nothing
 run (Free (Bind op k)) = do
     let newBPM = opBPM op
         newStart = opStart op
@@ -60,6 +70,7 @@ steps :: Prog Audio -> [String]
 steps (Pure _) = []
 steps (Free (Source (File tr) k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
 steps (Free (Source (Synth freq dur) k)) = ("synth " ++ show freq ++ " " ++ show dur) : steps (k noAudio)
+steps (Free (Source (Silence dur) k)) = ("silence " ++ show dur) : steps (k noAudio)
 steps (Free (Bind (OpSoxFX fx _) k)) = ("soxfx " ++ head (soxCompile fx)) : steps (k noAudio)
 steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
 steps (Free (Bind (Sequence _ _) k)) = "sequence" : steps (k noAudio)

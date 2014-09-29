@@ -45,6 +45,7 @@ data Op = OpSoxFX SoxFX Audio
 
 data Source = File Track
             | Synth Double Double
+            | Silence Double
 
 instance Functor ProgF where
     fmap f (Source src k) = Source src(f . k)
