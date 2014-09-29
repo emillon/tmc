@@ -40,6 +40,7 @@ data ProgF a = File Track (Audio -> a)
 
 data Op = OpSoxFX SoxFX Audio
         | Merge Audio Audio
+        | Sequence Audio Audio
 
 instance Functor ProgF where
     fmap f (File track k) = File track (f . k)
@@ -83,6 +84,7 @@ audioTrack t = liftF $ File t id
 opBPM :: Op -> Maybe Double
 opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
 opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
+opBPM (Sequence _ _) = Nothing -- could optimize when a & b are close
 
 soxBPM :: SoxFX -> Double -> Double
 soxBPM (SoxTempo ratio) x = ratio * x
@@ -92,6 +94,7 @@ soxBPM (SoxGain _) x = x
 opStart :: Op -> Maybe Double
 opStart (OpSoxFX sfx a) = soxStart sfx <$> aStart a
 opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
+opStart (Sequence a _b) = aStart a
 
 soxStart :: SoxFX -> Double -> Double
 soxStart (SoxTempo ratio) x = ratio * x
@@ -107,3 +110,4 @@ coMake op deps =
 opCo :: Op -> CObject
 opCo (OpSoxFX sfx a) = coMake ("SoxFX (" ++ unwords (soxCompile sfx) ++ ")") [a]
 opCo (Merge a b) = coMake "Merge" [a, b]
+opCo (Sequence a b) = coMake "Sequence" [a, b]

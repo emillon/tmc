@@ -18,6 +18,8 @@ interpretOp (OpSoxFX fx (Audio _ input _ _)) temp =
     execCommand "sox" $ [input, temp] ++ soxCompile fx
 interpretOp (Merge a b) temp =
     execCommand "sox" ["-m", aPath a, aPath b, temp]
+interpretOp (Sequence a b) temp =
+    execCommand "sox" [aPath a, aPath b, temp]
 
 decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
 decodeFile Mp3 input output =
@@ -49,6 +51,7 @@ steps (Pure _) = []
 steps (Free (File tr k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
 steps (Free (Bind (OpSoxFX fx _) k)) = ("soxfx " ++ head (soxCompile fx)) : steps (k noAudio)
 steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
+steps (Free (Bind (Sequence _ _) k)) = "sequence" : steps (k noAudio)
 
 noAudio :: Audio
 noAudio = undefined
