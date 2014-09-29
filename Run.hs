@@ -54,7 +54,7 @@ run (Free (Bind op k)) = do
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
 steps (Free (File tr k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
-steps (Free (Bind (SoxFX fx _) k)) = ("soxfx " ++ fx) : steps (k noAudio)
+steps (Free (Bind (SoxFX _ _) k)) = ("soxfx") : steps (k noAudio)
 steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
 
 noAudio :: Audio

@@ -16,11 +16,23 @@ walkOnBy =
           , trackBPM = 133
           }
 
+warpTo :: Audio -> Audio -> Prog Audio
+warpTo dest src =
+    warpAudio ratio src
+        where
+            ratioM = do
+                destBPM <- aBPM dest
+                origBPM <- aBPM src
+                return $ destBPM / origBPM
+            ratio = case ratioM of
+                Nothing -> error "warpTo: no BPM on track"
+                Just x -> x
+
 exampleBootleg :: Prog Audio
 exampleBootleg = do
     acap <- audioTrack katy
     instr <- audioTrack walkOnBy
-    warpedAcap <- warpAudio ((trackBPM walkOnBy) / (trackBPM katy)) acap
+    warpedAcap <- warpTo instr acap
     shiftedAcap <- shiftAudio 5.899 warpedAcap
     gainAcap <- gainAudio (-3) shiftedAcap
     mergeAudio instr gainAcap
