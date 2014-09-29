@@ -29,11 +29,11 @@ decodeFile Flac input output =
 
 genSynth :: Double -> Double -> FilePath -> IO ()
 genSynth freq dur output =
-    execCommand "sox" ["-n", output, "synth", show dur, "sine", show freq]
+    execCommand "sox" ["-n", "-r", "44100", output, "synth", showD dur, "sine", showD freq]
 
 genSilence :: Double -> FilePath -> IO ()
 genSilence dur output =
-    execCommand "sox" ["-n", output, "trim", "0", show dur]
+    execCommand "sox" ["-n", "-r", "44100", output, "trim", "0", showD dur]
 
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x

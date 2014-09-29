@@ -6,6 +6,7 @@ module Prog ( Prog
             , Op(..)
             , SoxFX
             , soxCompile
+            , showD
             , soxFX
             , warpAudio
             , shiftAudio
@@ -25,6 +26,7 @@ module Prog ( Prog
 
 import Control.Applicative
 import Control.Monad.Free
+import Text.Printf
 
 import Cache
 
@@ -63,9 +65,12 @@ data SoxFX = SoxTempo Double
            | SoxGain Double
 
 soxCompile :: SoxFX -> [String]
-soxCompile (SoxTempo ratio) = ["tempo", show ratio]
-soxCompile (SoxPad amount) = ["pad", show amount]
-soxCompile (SoxGain amount) = ["gain", show amount]
+soxCompile (SoxTempo ratio) = ["tempo", showD ratio]
+soxCompile (SoxPad amount) = ["pad", showD amount]
+soxCompile (SoxGain amount) = ["gain", showD amount]
+
+showD :: Double -> String
+showD d = printf "%f" d
 
 soxFX :: SoxFX -> Audio -> Prog Audio
 soxFX fx a = liftF $ Bind (OpSoxFX fx a) id
