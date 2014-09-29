@@ -22,6 +22,7 @@ module Prog ( Prog
             , opStart
             , opCo
             , metronome
+            , checkBPM
             ) where
 
 import Control.Applicative
@@ -156,3 +157,10 @@ metronome bpm nbars = do
             loFreq = 440
             silenceLen = beatLen - beepLen
             beatLen = 60 / bpm
+
+checkBPM :: Track -> Prog Audio
+checkBPM track = do
+    a <- audioTrack track
+    m <- metronome (trackBPM track) 16
+    s <- shiftAudio (trackStart track) m
+    mergeAudio a s
