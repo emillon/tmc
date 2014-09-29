@@ -16,7 +16,7 @@ walkOnBy :: Track
 walkOnBy =
     Track { trackFormat = Flac
           , trackPath = "walkonby.flac"
-          , trackBPM = 133
+          , trackBPM = 133.756
           , trackStart = 0.023
           }
 
