@@ -14,10 +14,13 @@ module Prog ( Prog
             , audioTrack
             , opBPM
             , opStart
+            , opCo
             ) where
 
 import Control.Applicative
 import Control.Monad.Free
+
+import Cache
 
 data AudioType = Mp3
                | Flac
@@ -25,7 +28,8 @@ data AudioType = Mp3
 
 -- | Some Audio tracks have BPM, others do not.
 --   Same for start time.
-data Audio = Audio { aPath :: FilePath
+data Audio = Audio { aCache :: CObject
+                   , aPath :: FilePath
                    , aBPM :: Maybe Double
                    , aStart :: Maybe Double
                    }
@@ -93,3 +97,13 @@ soxStart :: SoxFX -> Double -> Double
 soxStart (SoxTempo ratio) x = ratio * x
 soxStart (SoxPad shift) x = shift + x
 soxStart (SoxGain _) x = x
+
+coMake :: String -> [Audio] -> CObject
+coMake op deps =
+    CObject { coOp = op
+            , coDeps = map (coHash . aCache) deps
+            }
+
+opCo :: Op -> CObject
+opCo (OpSoxFX sfx a) = coMake ("SoxFX (" ++ unwords (soxCompile sfx) ++ ")") [a]
+opCo (Merge a b) = coMake "Merge" [a, b]

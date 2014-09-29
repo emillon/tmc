@@ -5,27 +5,16 @@ module Run ( run
 import Control.Monad
 import Control.Monad.Free
 import System.Cmd
-import System.Directory
 
+import Cache
 import Prog
 
 execCommand :: String -> [String] -> IO ()
 execCommand cmd args =
     void $ rawSystem cmd args
 
-nextTemp :: IO FilePath
-nextTemp = go 0
-    where
-        go :: Integer -> IO FilePath
-        go n = do
-            let path = "/tmp/temp" ++ show n ++ ".wav"
-            ex <- doesFileExist path
-            if ex
-                then go (n+1)
-                else return path
-
 interpretOp :: Op -> FilePath -> IO ()
-interpretOp (OpSoxFX fx (Audio input _ _)) temp =
+interpretOp (OpSoxFX fx (Audio _ input _ _)) temp =
     execCommand "sox" $ [input, temp] ++ soxCompile fx
 interpretOp (Merge a b) temp =
     execCommand "sox" ["-m", aPath a, aPath b, temp]
@@ -39,19 +28,21 @@ decodeFile Flac input output =
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
 run (Free (File track k)) = do
-    temp <- nextTemp
     let fmt = trackFormat track
         path = trackPath track
         bpm = trackBPM track
         start = trackStart track
-    decodeFile fmt path temp
-    run $ k $ Audio temp (Just bpm) (Just start)
+        co = CObject { coOp = "File"
+                     , coDeps = []
+                     }
+    temp <- cached co $ decodeFile fmt path
+    run $ k $ Audio co temp (Just bpm) (Just start)
 run (Free (Bind op k)) = do
-    temp <- nextTemp
-    interpretOp op temp
     let newBPM = opBPM op
         newStart = opStart op
-    run $ k $ Audio temp newBPM newStart
+        co = opCo op
+    temp <- cached co $ interpretOp op
+    run $ k $ Audio co temp newBPM newStart
 
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
