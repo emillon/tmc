@@ -42,5 +42,5 @@ cached :: CObject -> (FilePath -> IO ()) -> IO FilePath
 cached co act = do
     let path = coFile co
     ex <- doesFileExist path
-    when (not ex) $ act path
+    unless ex $ act path
     return path
