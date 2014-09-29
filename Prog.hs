@@ -13,6 +13,7 @@ module Prog ( Prog
             , Track(..)
             , audioTrack
             , opBPM
+            , opStart
             ) where
 
 import Control.Monad.Free
@@ -22,8 +23,10 @@ data AudioType = Mp3
     deriving (Show)
 
 -- | Some Audio tracks have BPM, others do not.
+--   Same for start time.
 data Audio = Audio { aPath :: FilePath
                    , aBPM :: Maybe Double
+                   , aStart :: Maybe Double
                    }
     deriving (Show)
 
@@ -79,3 +82,13 @@ opBPM (OpSoxFX (SoxTempo ratio) a) = do
 opBPM (OpSoxFX (SoxPad _) a) = aBPM a
 opBPM (OpSoxFX (SoxGain _) a) = aBPM a
 opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
+
+opStart :: Op -> Maybe Double
+opStart (OpSoxFX (SoxTempo ratio ) a) = do
+    start <- aStart a
+    return $ ratio * start
+opStart (OpSoxFX (SoxPad shift) a) = do
+    start <- aStart a
+    return $ start + shift
+opStart (OpSoxFX (SoxGain _) a) = aStart a
+opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks

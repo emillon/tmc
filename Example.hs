@@ -30,12 +30,24 @@ warpTo dest src =
                 Nothing -> error "warpTo: no BPM on track"
                 Just x -> x
 
+alignTo :: Audio -> Audio -> Int -> Prog Audio
+alignTo dest src beatOff =
+    shiftAudio shiftAmount src
+        where
+            shiftAmountM = do
+                bpm <- aBPM dest
+                destStart <- aStart dest
+                srcStart <- aStart src
+                return $ destStart - srcStart + fromIntegral beatOff * 60 / bpm
+            shiftAmount = case shiftAmountM of
+                Nothing -> error "alignTo: missing a start time or BPM"
+                Just x -> x
+
 exampleBootleg :: Prog Audio
 exampleBootleg = do
     acap <- audioTrack katy
     instr <- audioTrack walkOnBy
     warpedAcap <- warpTo instr acap
-    let shiftAmount = trackStart walkOnBy - trackStart katy + 16 * 60 / (trackBPM walkOnBy)
-    shiftedAcap <- shiftAudio shiftAmount warpedAcap
+    shiftedAcap <- alignTo instr warpedAcap 16
     gainAcap <- gainAudio (-3) shiftedAcap
     mergeAudio instr gainAcap

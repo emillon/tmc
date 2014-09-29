@@ -25,10 +25,10 @@ nextTemp = go 0
                 else return path
 
 interpretOp :: Op -> FilePath -> IO ()
-interpretOp (OpSoxFX fx (Audio input _)) temp =
+interpretOp (OpSoxFX fx (Audio input _ _)) temp =
     execCommand "sox" $ [input, temp] ++ soxCompile fx
-interpretOp (Merge (Audio a _) (Audio b _)) temp =
-    execCommand "sox" ["-m", a, b, temp]
+interpretOp (Merge a b) temp =
+    execCommand "sox" ["-m", aPath a, aPath b, temp]
 
 decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
 decodeFile Mp3 input output =
@@ -43,13 +43,15 @@ run (Free (File track k)) = do
     let fmt = trackFormat track
         path = trackPath track
         bpm = trackBPM track
+        start = trackStart track
     decodeFile fmt path temp
-    run $ k $ Audio temp (Just bpm)
+    run $ k $ Audio temp (Just bpm) (Just start)
 run (Free (Bind op k)) = do
     temp <- nextTemp
     interpretOp op temp
     let newBPM = opBPM op
-    run $ k $ Audio temp newBPM
+        newStart = opStart op
+    run $ k $ Audio temp newBPM newStart
 
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
