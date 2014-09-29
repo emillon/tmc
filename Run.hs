@@ -18,15 +18,15 @@ nextTemp = go 0
     where
         go :: Integer -> IO FilePath
         go n = do
-            let path = "temp" ++ show n ++ ".wav"
+            let path = "/tmp/temp" ++ show n ++ ".wav"
             ex <- doesFileExist path
             if ex
                 then go (n+1)
                 else return path
 
 interpretOp :: Op -> FilePath -> IO ()
-interpretOp (SoxFX fx (Audio input _)) temp =
-    execCommand "sox" $ [input, temp] ++ words fx
+interpretOp (OpSoxFX fx (Audio input _)) temp =
+    execCommand "sox" $ [input, temp] ++ soxCompile fx
 interpretOp (Merge (Audio a _) (Audio b _)) temp =
     execCommand "sox" ["-m", a, b, temp]
 
@@ -54,7 +54,7 @@ run (Free (Bind op k)) = do
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
 steps (Free (File tr k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
-steps (Free (Bind (SoxFX _ _) k)) = ("soxfx") : steps (k noAudio)
+steps (Free (Bind (OpSoxFX fx _) k)) = ("soxfx " ++ head (soxCompile fx)) : steps (k noAudio)
 steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
 
 noAudio :: Audio
