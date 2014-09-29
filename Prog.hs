@@ -36,6 +36,7 @@ data Audio = Audio { aCache :: CObject
     deriving (Show)
 
 data ProgF a = File Track (Audio -> a)
+             | Synth Double Double (Audio -> a)
              | Bind Op (Audio -> a)
 
 data Op = OpSoxFX SoxFX Audio
@@ -44,6 +45,7 @@ data Op = OpSoxFX SoxFX Audio
 
 instance Functor ProgF where
     fmap f (File track k) = File track (f . k)
+    fmap f (Synth freq dur k) = Synth freq dur (f . k)
     fmap f (Bind op k) = Bind op (f . k)
 
 type Prog a = Free ProgF a

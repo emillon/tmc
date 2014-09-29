@@ -27,6 +27,10 @@ decodeFile Mp3 input output =
 decodeFile Flac input output =
     execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
 
+genSynth :: Double -> Double -> FilePath -> IO ()
+genSynth freq dur output =
+    execCommand "sox" ["-n", output, "synth", show dur, "sine", show freq]
+
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
 run (Free (File track k)) = do
@@ -39,6 +43,12 @@ run (Free (File track k)) = do
                      }
     temp <- cached co $ decodeFile fmt path
     run $ k $ Audio co temp (Just bpm) (Just start)
+run (Free (Synth freq dur k)) = do
+    let co = CObject { coOp = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
+                     , coDeps = []
+                     }
+    temp <- cached co $ genSynth freq dur
+    run $ k $ Audio co temp Nothing (Just 0)
 run (Free (Bind op k)) = do
     let newBPM = opBPM op
         newStart = opStart op
@@ -49,6 +59,7 @@ run (Free (Bind op k)) = do
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
 steps (Free (File tr k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
+steps (Free (Synth freq dur k)) = ("synth " ++ show freq ++ " " ++ show dur) : steps (k noAudio)
 steps (Free (Bind (OpSoxFX fx _) k)) = ("soxfx " ++ head (soxCompile fx)) : steps (k noAudio)
 steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
 steps (Free (Bind (Sequence _ _) k)) = "sequence" : steps (k noAudio)
