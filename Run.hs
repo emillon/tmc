@@ -33,7 +33,7 @@ genSynth freq dur output =
 
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
-run (Free (File track k)) = do
+run (Free (Source (File track) k)) = do
     let fmt = trackFormat track
         path = trackPath track
         bpm = trackBPM track
@@ -43,7 +43,7 @@ run (Free (File track k)) = do
                      }
     temp <- cached co $ decodeFile fmt path
     run $ k $ Audio co temp (Just bpm) (Just start)
-run (Free (Synth freq dur k)) = do
+run (Free (Source (Synth freq dur) k)) = do
     let co = CObject { coOp = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
                      , coDeps = []
                      }
@@ -58,8 +58,8 @@ run (Free (Bind op k)) = do
 
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
-steps (Free (File tr k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
-steps (Free (Synth freq dur k)) = ("synth " ++ show freq ++ " " ++ show dur) : steps (k noAudio)
+steps (Free (Source (File tr) k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
+steps (Free (Source (Synth freq dur) k)) = ("synth " ++ show freq ++ " " ++ show dur) : steps (k noAudio)
 steps (Free (Bind (OpSoxFX fx _) k)) = ("soxfx " ++ head (soxCompile fx)) : steps (k noAudio)
 steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
 steps (Free (Bind (Sequence _ _) k)) = "sequence" : steps (k noAudio)

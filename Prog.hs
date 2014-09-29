@@ -2,6 +2,7 @@ module Prog ( Prog
             , ProgF(..)
             , Audio(..)
             , AudioType(..)
+            , Source(..)
             , Op(..)
             , SoxFX
             , soxCompile
@@ -35,17 +36,18 @@ data Audio = Audio { aCache :: CObject
                    }
     deriving (Show)
 
-data ProgF a = File Track (Audio -> a)
-             | Synth Double Double (Audio -> a)
+data ProgF a = Source Source (Audio -> a)
              | Bind Op (Audio -> a)
 
 data Op = OpSoxFX SoxFX Audio
         | Merge Audio Audio
         | Sequence Audio Audio
 
+data Source = File Track
+            | Synth Double Double
+
 instance Functor ProgF where
-    fmap f (File track k) = File track (f . k)
-    fmap f (Synth freq dur k) = Synth freq dur (f . k)
+    fmap f (Source src k) = Source src(f . k)
     fmap f (Bind op k) = Bind op (f . k)
 
 type Prog a = Free ProgF a
@@ -81,7 +83,7 @@ data Track = Track { trackFormat :: AudioType
                    }
 
 audioTrack :: Track -> Prog Audio
-audioTrack t = liftF $ File t id
+audioTrack t = liftF $ (Source $ File t) id
 
 opBPM :: Op -> Maybe Double
 opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
