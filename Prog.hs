@@ -3,12 +3,14 @@ module Prog ( Prog
             , Audio(..)
             , AudioType(..)
             , Op(..)
-            , sourceFile
             , soxFX
             , warpAudio
             , shiftAudio
             , gainAudio
             , mergeAudio
+            , Track(..)
+            , audioTrack
+            , opBPM
             ) where
 
 import Control.Monad.Free
@@ -17,23 +19,23 @@ data AudioType = Mp3
                | Flac
     deriving (Show)
 
-data Audio = Audio FilePath
+-- | Some Audio tracks have BPM, others do not.
+data Audio = Audio { aPath :: FilePath
+                   , aBPM :: Maybe Double
+                   }
     deriving (Show)
 
-data ProgF a = File AudioType FilePath (Audio -> a)
+data ProgF a = File Track (Audio -> a)
              | Bind Op (Audio -> a)
 
 data Op = SoxFX String Audio
         | Merge Audio Audio
 
 instance Functor ProgF where
-    fmap f (File typ path k) = File typ path (f . k)
+    fmap f (File track k) = File track (f . k)
     fmap f (Bind op k) = Bind op (f . k)
 
 type Prog a = Free ProgF a
-
-sourceFile :: AudioType -> FilePath -> Prog Audio
-sourceFile typ fp = liftF $ File typ fp id
 
 soxFX :: String -> Audio -> Prog Audio
 soxFX fx a = liftF $ Bind (SoxFX fx a) id
@@ -49,3 +51,15 @@ gainAudio amount = soxFX $ "gain " ++ show amount
 
 mergeAudio :: Audio -> Audio -> Prog Audio
 mergeAudio a b = liftF $ Bind (Merge a b) id
+
+data Track = Track { trackFormat :: AudioType
+                   , trackPath :: FilePath
+                   , trackBPM :: Double
+                   }
+
+audioTrack :: Track -> Prog Audio
+audioTrack t = liftF $ File t id
+
+opBPM :: Op -> Maybe Double
+opBPM (SoxFX sfx a) = aBPM a -- TODO check for different kinds of sfx
+opBPM (Merge a b) = aBPM a -- we assume that we're mixing similar tracks

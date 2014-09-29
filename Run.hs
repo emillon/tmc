@@ -25,9 +25,9 @@ nextTemp = go 0
                 else return path
 
 interpretOp :: Op -> FilePath -> IO ()
-interpretOp (SoxFX fx (Audio input)) temp =
+interpretOp (SoxFX fx (Audio input _)) temp =
     execCommand "sox" $ [input, temp] ++ words fx
-interpretOp (Merge (Audio a) (Audio b)) temp =
+interpretOp (Merge (Audio a _) (Audio b _)) temp =
     execCommand "sox" ["-m", a, b, temp]
 
 decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
@@ -38,18 +38,22 @@ decodeFile Flac input output =
 
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
-run (Free (File typ path k)) = do
+run (Free (File track k)) = do
     temp <- nextTemp
-    decodeFile typ path temp
-    run $ k $ Audio temp
+    let fmt = trackFormat track
+        path = trackPath track
+        bpm = trackBPM track
+    decodeFile fmt path temp
+    run $ k $ Audio temp (Just bpm)
 run (Free (Bind op k)) = do
     temp <- nextTemp
     interpretOp op temp
-    run $ k $ Audio temp
+    let newBPM = opBPM op
+    run $ k $ Audio temp newBPM
 
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
-steps (Free (File typ _ k)) = ("decode " ++ show typ) : steps (k noAudio)
+steps (Free (File tr k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
 steps (Free (Bind (SoxFX fx _) k)) = ("soxfx " ++ fx) : steps (k noAudio)
 steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
 
