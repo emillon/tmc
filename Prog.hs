@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 -- | The DSL itself.
 
 module Prog ( -- * Be safe kids, use newtypes
@@ -116,7 +118,8 @@ instance Functor ProgF where
     fmap f (Bind op k) = Bind op (f . k)
 
 -- | Our main Monad.
-type Prog a = Free ProgF a
+newtype Prog a = Prog (Free ProgF a)
+    deriving (Monad)
 
 data SoxFX = SoxTempo Double
            | SoxPad Duration
@@ -131,7 +134,7 @@ showD :: Double -> String
 showD d = printf "%f" d
 
 soxFX :: SoxFX -> Audio -> Prog Audio
-soxFX fx a = liftF $ Bind (OpSoxFX fx a) id
+soxFX fx a = Prog $ liftF $ Bind (OpSoxFX fx a) id
 
 -- | Change the speed of a track without altering its pitch
 warpAudio :: Double -> Audio -> Prog Audio
@@ -147,7 +150,7 @@ gainAudio amount = soxFX $ SoxGain amount
 
 -- | Mix tracks together.
 mergeAudio :: Audio -> Audio -> Prog Audio
-mergeAudio a b = liftF $ Bind (Merge a b) id
+mergeAudio a b = Prog $ liftF $ Bind (Merge a b) id
 
 -- | An audio file on disk. 'trackStart' is the position of beat zero.
 data Track = Track { trackFormat :: AudioType
@@ -158,19 +161,19 @@ data Track = Track { trackFormat :: AudioType
 
 -- | Read a 'Track'.
 audioTrack :: Track -> Prog Audio
-audioTrack t = liftF $ (Source $ File t) id
+audioTrack t = Prog $ liftF $ (Source $ File t) id
 
 -- | Generate a sine wave.
 synth :: Frequency -> Duration -> Prog Audio
-synth freq dur = liftF $ (Source $ Synth freq dur) id
+synth freq dur = Prog $ liftF $ (Source $ Synth freq dur) id
 
 -- | Generate silence.
 silence :: Duration -> Prog Audio
-silence dur = liftF $ (Source $ Silence dur) id
+silence dur = Prog $ liftF $ (Source $ Silence dur) id
 
 -- | Join tracks (play one after another).
 sequenceAudio :: Audio -> Audio -> Prog Audio
-sequenceAudio a b = liftF $ Bind (Sequence a b) id
+sequenceAudio a b = Prog $ liftF $ Bind (Sequence a b) id
 
 -- | An extension of 'sequenceAudio' to lists.
 seqList :: [Audio] -> Prog Audio
@@ -267,8 +270,8 @@ genSilence (Duration dur) output =
 
 -- | Execute the program: invoke tools that actually do the manipulation.
 run :: Prog Audio -> IO Audio
-run (Pure x) = return x
-run (Free (Source (File track) k)) = do
+run (Prog (Pure x)) = return x
+run (Prog (Free (Source (File track) k))) = do
     let fmt = trackFormat track
         path = trackPath track
         bpm = trackBPM track
@@ -277,35 +280,35 @@ run (Free (Source (File track) k)) = do
                      , coDeps = []
                      }
     temp <- cached co $ decodeFile fmt path
-    run $ k $ Audio co temp (Just bpm) (Just start)
-run (Free (Source (Synth freq dur) k)) = do
+    run $ Prog $ k $ Audio co temp (Just bpm) (Just start)
+run (Prog (Free (Source (Synth freq dur) k))) = do
     let co = CObject { coOp = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
                      , coDeps = []
                      }
     temp <- cached co $ genSynth freq dur
-    run $ k $ Audio co temp Nothing (Just (Duration 0))
-run (Free (Source (Silence dur) k)) = do
+    run $ Prog $ k $ Audio co temp Nothing (Just (Duration 0))
+run (Prog (Free (Source (Silence dur) k))) = do
     let co = CObject { coOp = "Silence (" ++ show dur ++ ")"
                      , coDeps = []
                      }
     temp <- cached co $ genSilence dur
-    run $ k $ Audio co temp Nothing Nothing
-run (Free (Bind op k)) = do
+    run $ Prog $ k $ Audio co temp Nothing Nothing
+run (Prog (Free (Bind op k))) = do
     let newBPM = opBPM op
         newStart = opStart op
         co = opCo op
     temp <- cached co $ interpretOp op
-    run $ k $ Audio co temp newBPM newStart
+    run $ Prog $ k $ Audio co temp newBPM newStart
 
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]
-steps (Pure _) = []
-steps (Free (Source (File tr) k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
-steps (Free (Source (Synth freq dur) k)) = ("synth " ++ show freq ++ " " ++ show dur) : steps (k noAudio)
-steps (Free (Source (Silence dur) k)) = ("silence " ++ show dur) : steps (k noAudio)
-steps (Free (Bind (OpSoxFX fx _) k)) = ("soxfx " ++ head (soxCompile fx)) : steps (k noAudio)
-steps (Free (Bind (Merge _ _) k)) = "merge" : steps (k noAudio)
-steps (Free (Bind (Sequence _ _) k)) = "sequence" : steps (k noAudio)
+steps (Prog (Pure _)) = []
+steps (Prog (Free (Source (File tr) k))) = ("decode " ++ show (trackFormat tr)) : steps (Prog (k noAudio))
+steps (Prog (Free (Source (Synth freq dur) k))) = ("synth " ++ show freq ++ " " ++ show dur) : steps (Prog (k noAudio))
+steps (Prog (Free (Source (Silence dur) k))) = ("silence " ++ show dur) : steps (Prog (k noAudio))
+steps (Prog (Free (Bind (OpSoxFX fx _) k))) = ("soxfx " ++ head (soxCompile fx)) : steps (Prog (k noAudio))
+steps (Prog (Free (Bind (Merge _ _) k))) = "merge" : steps (Prog (k noAudio))
+steps (Prog (Free (Bind (Sequence _ _) k))) = "sequence" : steps (Prog (k noAudio))
 
 noAudio :: Audio
 noAudio = undefined
