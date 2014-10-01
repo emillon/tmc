@@ -16,12 +16,15 @@ import Text.Printf
 
 import qualified Data.ByteString as B
 
+-- | A 'CObject' is like a key.
+-- It has dependencies and a "recipe" for building it.
 data CObject =
     CObject { coOp :: String
             , coDeps :: [B.ByteString]
             }
     deriving (Show)
 
+-- | Turn a 'CObject' to a 'ByteString' to express it as a dependency.
 coHash :: CObject -> B.ByteString
 coHash co =
     toHex $ hash $ B.intercalate newline $ header : sort (coDeps co)
@@ -38,6 +41,7 @@ coFile co = "/tmp/" ++ byteStringToString (coHash co) ++ ".wav"
 byteStringToString :: B.ByteString -> String
 byteStringToString = map (chr . fromIntegral) . B.unpack
 
+-- | Build or retrieve an object associated to a 'CObject'.
 cached :: CObject -> (FilePath -> IO ()) -> IO FilePath
 cached co act = do
     let path = coFile co

@@ -1,9 +1,16 @@
-module Example (exampleBootleg) where
+-- | An example bootleg.
+module Example ( -- * Tracks
+                 katy
+               , walkOnBy
+                 -- * Bootleg
+               , exampleBootleg
+               ) where
 
 import Data.Maybe
 
 import Prog
 
+-- | Katy Perry - Last Friday Night acapella.
 katy :: Track
 katy =
     Track { trackFormat = Mp3
@@ -12,6 +19,7 @@ katy =
           , trackStart = 1.365
           }
 
+-- | Miss Kittin & The Hacker - Walk On By.
 walkOnBy :: Track
 walkOnBy =
     Track { trackFormat = Flac
@@ -39,6 +47,7 @@ alignTo dest src beatOff =
                 srcStart <- aStart src
                 return $ destStart - srcStart + fromIntegral beatOff * 60 / bpm
 
+-- | The bootleg itself.
 exampleBootleg :: Prog Audio
 exampleBootleg = do
     acap <- audioTrack katy

@@ -1,21 +1,29 @@
-module Prog ( Prog
-            , Audio
+-- | The DSL itself.
+
+module Prog ( -- * Audio Tracks
+              Audio
             , aBPM
             , aStart
+              -- * The DSL
+              -- ** Type
+            , Prog
+              -- ** Sources
+            , Track(..)
             , AudioType(..)
-            , soxFX
+            , audioTrack
+            , synth
+            , silence
+              -- ** Operations
             , warpAudio
             , shiftAudio
             , gainAudio
             , mergeAudio
-            , synth
-            , silence
             , sequenceAudio
             , seqList
-            , Track(..)
-            , audioTrack
+              -- * Tools
             , metronome
             , checkBPM
+              -- * Interpreter
             , run
             , steps
             ) where
@@ -28,16 +36,18 @@ import Text.Printf
 
 import Cache
 
+-- | Type of an audio source
 data AudioType = Mp3
                | Flac
     deriving (Show)
 
--- | Some Audio tracks have BPM, others do not.
---   Same for start time.
+-- | A bounced audio track.
+-- This corresponds to an intermediate WAV file with
+-- metadata such as BPM or start time.
 data Audio = Audio { aCache :: CObject
                    , aPath :: FilePath
-                   , aBPM :: Maybe Double
-                   , aStart :: Maybe Double
+                   , aBPM :: Maybe Double -- ^ Retrieve the BPM of an audio track
+                   , aStart :: Maybe Double -- ^ Retrieve the start time of an audio track
                    }
     deriving (Show)
 
@@ -56,6 +66,7 @@ instance Functor ProgF where
     fmap f (Source src k) = Source src(f . k)
     fmap f (Bind op k) = Bind op (f . k)
 
+-- | Our main Monad.
 type Prog a = Free ProgF a
 
 data SoxFX = SoxTempo Double
@@ -73,36 +84,49 @@ showD d = printf "%f" d
 soxFX :: SoxFX -> Audio -> Prog Audio
 soxFX fx a = liftF $ Bind (OpSoxFX fx a) id
 
+-- | Change the speed of a track without altering its pitch
 warpAudio :: Double -> Audio -> Prog Audio
 warpAudio ratio = soxFX $ SoxTempo ratio
 
+-- | Pad with silence before the start.
 shiftAudio :: Double -> Audio -> Prog Audio
 shiftAudio amount = soxFX $ SoxPad amount
 
+-- | Adjust the gain (in DBs).
 gainAudio :: Double -> Audio -> Prog Audio
 gainAudio amount = soxFX $ SoxGain amount
 
+-- | Mix tracks together.
 mergeAudio :: Audio -> Audio -> Prog Audio
 mergeAudio a b = liftF $ Bind (Merge a b) id
 
+-- | An audio file on disk. 'trackStart' is the position of beat zero.
 data Track = Track { trackFormat :: AudioType
                    , trackPath :: FilePath
                    , trackBPM :: Double
                    , trackStart :: Double
                    }
 
+-- | Read a 'Track'.
 audioTrack :: Track -> Prog Audio
 audioTrack t = liftF $ (Source $ File t) id
 
-synth :: Double -> Double -> Prog Audio
+-- | Generate a sine wave.
+synth :: Double -- ^ Frequency
+      -> Double -- ^ Duration
+      -> Prog Audio
 synth freq dur = liftF $ (Source $ Synth freq dur) id
 
-silence :: Double -> Prog Audio
+-- | Generate silence.
+silence :: Double -- ^ Duration
+        -> Prog Audio
 silence dur = liftF $ (Source $ Silence dur) id
 
+-- | Join tracks (play one after another).
 sequenceAudio :: Audio -> Audio -> Prog Audio
 sequenceAudio a b = liftF $ Bind (Sequence a b) id
 
+-- | An extension of 'sequenceAudio' to lists.
 seqList :: [Audio] -> Prog Audio
 seqList [] = error "seqList"
 seqList [a] = return a
@@ -141,7 +165,12 @@ opCo (OpSoxFX sfx a) = coMake ("SoxFX (" ++ unwords (soxCompile sfx) ++ ")") [a]
 opCo (Merge a b) = coMake "Merge" [a, b]
 opCo (Sequence a b) = coMake "Sequence" [a, b]
 
-metronome :: Double -> Int -> Prog Audio
+-- | A track that only does beep beep.
+-- There are actually two different beeps, a high one and a low one.
+-- It does H L -- L L H L L L... (4/4)
+metronome :: Double -- ^ BPM
+          -> Int -- ^ Number of bars
+          -> Prog Audio
 metronome bpm nbars = do
     hiBeep <- synth hiFreq beepLen
     sil <- silence silenceLen
@@ -155,6 +184,8 @@ metronome bpm nbars = do
             silenceLen = beatLen - beepLen
             beatLen = 60 / bpm
 
+-- | Play a metronome synchronized on top of a track.
+-- It should be an easy way to know if the track's metadata is correct.
 checkBPM :: Track -> Prog Audio
 checkBPM track = do
     a <- audioTrack track
@@ -188,6 +219,7 @@ genSilence :: Double -> FilePath -> IO ()
 genSilence dur output =
     execCommand "sox" ["-n", "-r", "44100", output, "trim", "0", showD dur]
 
+-- | Execute the program: invoke tools that actually do the manipulation.
 run :: Prog Audio -> IO Audio
 run (Pure x) = return x
 run (Free (Source (File track) k)) = do
@@ -219,6 +251,7 @@ run (Free (Bind op k)) = do
     temp <- cached co $ interpretOp op
     run $ k $ Audio co temp newBPM newStart
 
+-- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]
 steps (Pure _) = []
 steps (Free (Source (File tr) k)) = ("decode " ++ show (trackFormat tr)) : steps (k noAudio)
