@@ -1,7 +1,17 @@
 -- | The DSL itself.
 
-module Prog ( -- * Audio Tracks
-              Audio
+module Prog ( -- * Be safe kids, use newtypes
+              BPM(..)
+            , bpmRatio
+            , beatLen
+            , Duration(..)
+            , durationAdd
+            , durationDiff
+            , durationTimes
+            , Frequency(..)
+            , Gain(..)
+              -- * Audio Tracks
+            , Audio
             , aBPM
             , aStart
               -- * The DSL
@@ -36,6 +46,45 @@ import Text.Printf
 
 import Cache
 
+-- | Beats Per Minute.
+newtype BPM = BPM Double
+    deriving (Show)
+
+-- | Ratio of two BPMs.
+bpmRatio :: BPM -> BPM -> Double
+bpmRatio (BPM a) (BPM b) =
+    a / b
+
+-- | Duration of a beat.
+beatLen :: BPM -> Duration
+beatLen (BPM bpm) =
+    Duration $ 60 / bpm
+
+-- | A duration, in seconds.
+newtype Duration = Duration Double
+    deriving (Show)
+
+-- | Add two Durations.
+durationAdd :: Duration -> Duration -> Duration
+durationAdd (Duration a) (Duration b) =
+    Duration $ a + b
+
+-- | Difference between two Durations.
+durationDiff :: Duration -> Duration -> Duration
+durationDiff (Duration a) (Duration b) =
+    Duration $ a - b
+
+-- | Multiply an integer and a Duration.
+durationTimes :: Int -> Duration -> Duration
+durationTimes n (Duration a) =
+    Duration $ fromIntegral n * a
+-- | A frequency, in Hertz.
+newtype Frequency = Frequency Double
+    deriving (Show)
+
+-- | A gain, in DB.
+newtype Gain = Gain Double
+
 -- | Type of an audio source
 data AudioType = Mp3
                | Flac
@@ -46,8 +95,8 @@ data AudioType = Mp3
 -- metadata such as BPM or start time.
 data Audio = Audio { aCache :: CObject
                    , aPath :: FilePath
-                   , aBPM :: Maybe Double -- ^ Retrieve the BPM of an audio track
-                   , aStart :: Maybe Double -- ^ Retrieve the start time of an audio track
+                   , aBPM :: Maybe BPM -- ^ Retrieve the BPM of an audio track
+                   , aStart :: Maybe Duration -- ^ Retrieve the start time of an audio track
                    }
     deriving (Show)
 
@@ -59,8 +108,8 @@ data Op = OpSoxFX SoxFX Audio
         | Sequence Audio Audio
 
 data Source = File Track
-            | Synth Double Double
-            | Silence Double
+            | Synth Frequency Duration
+            | Silence Duration
 
 instance Functor ProgF where
     fmap f (Source src k) = Source src(f . k)
@@ -70,13 +119,13 @@ instance Functor ProgF where
 type Prog a = Free ProgF a
 
 data SoxFX = SoxTempo Double
-           | SoxPad Double
-           | SoxGain Double
+           | SoxPad Duration
+           | SoxGain Gain
 
 soxCompile :: SoxFX -> [String]
 soxCompile (SoxTempo ratio) = ["tempo", showD ratio]
-soxCompile (SoxPad amount) = ["pad", showD amount]
-soxCompile (SoxGain amount) = ["gain", showD amount]
+soxCompile (SoxPad (Duration amount)) = ["pad", showD amount]
+soxCompile (SoxGain (Gain amount)) = ["gain", showD amount]
 
 showD :: Double -> String
 showD d = printf "%f" d
@@ -89,11 +138,11 @@ warpAudio :: Double -> Audio -> Prog Audio
 warpAudio ratio = soxFX $ SoxTempo ratio
 
 -- | Pad with silence before the start.
-shiftAudio :: Double -> Audio -> Prog Audio
+shiftAudio :: Duration -> Audio -> Prog Audio
 shiftAudio amount = soxFX $ SoxPad amount
 
 -- | Adjust the gain (in DBs).
-gainAudio :: Double -> Audio -> Prog Audio
+gainAudio :: Gain -> Audio -> Prog Audio
 gainAudio amount = soxFX $ SoxGain amount
 
 -- | Mix tracks together.
@@ -103,8 +152,8 @@ mergeAudio a b = liftF $ Bind (Merge a b) id
 -- | An audio file on disk. 'trackStart' is the position of beat zero.
 data Track = Track { trackFormat :: AudioType
                    , trackPath :: FilePath
-                   , trackBPM :: Double
-                   , trackStart :: Double
+                   , trackBPM :: BPM
+                   , trackStart :: Duration
                    }
 
 -- | Read a 'Track'.
@@ -112,14 +161,11 @@ audioTrack :: Track -> Prog Audio
 audioTrack t = liftF $ (Source $ File t) id
 
 -- | Generate a sine wave.
-synth :: Double -- ^ Frequency
-      -> Double -- ^ Duration
-      -> Prog Audio
+synth :: Frequency -> Duration -> Prog Audio
 synth freq dur = liftF $ (Source $ Synth freq dur) id
 
 -- | Generate silence.
-silence :: Double -- ^ Duration
-        -> Prog Audio
+silence :: Duration -> Prog Audio
 silence dur = liftF $ (Source $ Silence dur) id
 
 -- | Join tracks (play one after another).
@@ -134,24 +180,24 @@ seqList (a:as) = do
     r <- seqList as
     sequenceAudio a r
 
-opBPM :: Op -> Maybe Double
+opBPM :: Op -> Maybe BPM
 opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
 opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
 opBPM (Sequence _ _) = Nothing -- could optimize when a & b are close
 
-soxBPM :: SoxFX -> Double -> Double
-soxBPM (SoxTempo ratio) x = ratio * x
+soxBPM :: SoxFX -> BPM -> BPM
+soxBPM (SoxTempo ratio) (BPM x) = BPM $ ratio * x
 soxBPM (SoxPad _) x = x
 soxBPM (SoxGain _) x = x
 
-opStart :: Op -> Maybe Double
+opStart :: Op -> Maybe Duration
 opStart (OpSoxFX sfx a) = soxStart sfx <$> aStart a
 opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
 opStart (Sequence a _b) = aStart a
 
-soxStart :: SoxFX -> Double -> Double
-soxStart (SoxTempo ratio) x = ratio * x
-soxStart (SoxPad shift) x = shift + x
+soxStart :: SoxFX -> Duration -> Duration
+soxStart (SoxTempo ratio) (Duration x) = Duration $ ratio * x
+soxStart (SoxPad (Duration shift)) (Duration x) = Duration $ shift + x
 soxStart (SoxGain _) x = x
 
 coMake :: String -> [Audio] -> CObject
@@ -167,8 +213,8 @@ opCo (Sequence a b) = coMake "Sequence" [a, b]
 
 -- | A track that only does beep beep.
 -- There are actually two different beeps, a high one and a low one.
--- It does H L -- L L H L L L... (4/4)
-metronome :: Double -- ^ BPM
+-- It does H L L L H L L L... (4/4)
+metronome :: BPM
           -> Int -- ^ Number of bars
           -> Prog Audio
 metronome bpm nbars = do
@@ -178,11 +224,11 @@ metronome bpm nbars = do
     bar <- seqList [hiBeep, sil, loBeep, sil, loBeep, sil, loBeep, sil]
     seqList $ replicate nbars bar
         where
-            beepLen = 0.1
-            hiFreq = 2 * loFreq
-            loFreq = 440
-            silenceLen = beatLen - beepLen
-            beatLen = 60 / bpm
+            beepLen = Duration 0.1
+            hiFreq = Frequency $ 2 * baseFreq
+            loFreq = Frequency baseFreq
+            baseFreq = 440
+            silenceLen = durationDiff (beatLen bpm) beepLen
 
 -- | Play a metronome synchronized on top of a track.
 -- It should be an easy way to know if the track's metadata is correct.
@@ -211,12 +257,12 @@ decodeFile Mp3 input output =
 decodeFile Flac input output =
     execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
 
-genSynth :: Double -> Double -> FilePath -> IO ()
-genSynth freq dur output =
+genSynth :: Frequency -> Duration -> FilePath -> IO ()
+genSynth (Frequency freq) (Duration dur) output =
     execCommand "sox" ["-n", "-r", "44100", output, "synth", showD dur, "sine", showD freq]
 
-genSilence :: Double -> FilePath -> IO ()
-genSilence dur output =
+genSilence :: Duration -> FilePath -> IO ()
+genSilence (Duration dur) output =
     execCommand "sox" ["-n", "-r", "44100", output, "trim", "0", showD dur]
 
 -- | Execute the program: invoke tools that actually do the manipulation.
@@ -237,7 +283,7 @@ run (Free (Source (Synth freq dur) k)) = do
                      , coDeps = []
                      }
     temp <- cached co $ genSynth freq dur
-    run $ k $ Audio co temp Nothing (Just 0)
+    run $ k $ Audio co temp Nothing (Just (Duration 0))
 run (Free (Source (Silence dur) k)) = do
     let co = CObject { coOp = "Silence (" ++ show dur ++ ")"
                      , coDeps = []

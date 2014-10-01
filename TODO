@@ -2,9 +2,4 @@
   - cut track
   - Cache: put the "FilePath -> IO ()" into the cOBject
   - Prog: make Prog a newtype
-  - add newtypes around:
-    - BPMs
-    - duration
-    - frequency
-    - gain
   - cabalize
