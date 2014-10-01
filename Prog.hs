@@ -211,7 +211,7 @@ soxStart (SoxPad (Duration shift)) (Duration x) = Duration $ shift + x
 soxStart (SoxGain _) x = x
 
 opDescr :: Op -> String
-opDescr (File _) = "File"
+opDescr (File a) = "File (" ++ show (trackPath a) ++ ")"
 opDescr (Synth freq dur) = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
 opDescr (Silence dur) = "Silence (" ++ show dur ++ ")"
 opDescr (OpSoxFX sfx _) = "SoxFX (" ++ unwords (soxCompile sfx) ++ ")"
