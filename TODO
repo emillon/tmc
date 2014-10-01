@@ -3,3 +3,5 @@
   - Cache: put the "FilePath -> IO ()" into the cOBject
   - Prog: make Prog a newtype
   - cabalize
+  - add a ToArg class for stuff that can be passed to sox
+  - move alignTo / warpTo to prog
