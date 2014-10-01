@@ -325,12 +325,15 @@ run (Prog (Free (Bind op k))) = do
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]
 steps (Prog (Pure _)) = []
-steps (Prog (Free (Bind (File tr) k))) = ("decode " ++ show (trackFormat tr)) : steps (Prog (k noAudio))
-steps (Prog (Free (Bind (Synth freq dur) k))) = ("synth " ++ show freq ++ " " ++ show dur) : steps (Prog (k noAudio))
-steps (Prog (Free (Bind (Silence dur) k))) = ("silence " ++ show dur) : steps (Prog (k noAudio))
-steps (Prog (Free (Bind (OpSoxFX fx _) k))) = ("soxfx " ++ head (soxCompile fx)) : steps (Prog (k noAudio))
-steps (Prog (Free (Bind (Merge _ _) k))) = "merge" : steps (Prog (k noAudio))
-steps (Prog (Free (Bind (Sequence _ _) k))) = "sequence" : steps (Prog (k noAudio))
+steps (Prog (Free (Bind op k))) = showShortOp op : steps (Prog (k noAudio))
+
+showShortOp :: Op -> String
+showShortOp (File tr) = "decode " ++ show (trackFormat tr)
+showShortOp (Synth freq dur) = "synth " ++ show freq ++ " " ++ show dur
+showShortOp (Silence dur) = "silence " ++ show dur
+showShortOp (OpSoxFX fx _) = "soxfx " ++ head (soxCompile fx)
+showShortOp (Merge _ _) = "merge"
+showShortOp (Sequence _ _) = "sequence"
 
 noAudio :: Audio
 noAudio = undefined
