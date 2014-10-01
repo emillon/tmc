@@ -105,19 +105,16 @@ data Audio = Audio { aCache :: CObject
                    }
     deriving (Show)
 
-data ProgF a = Source Source (Audio -> a)
-             | Bind Op (Audio -> a)
+data ProgF a = Bind Op (Audio -> a)
 
-data Op = OpSoxFX SoxFX Audio
+data Op = File Track
+        | Synth Frequency Duration
+        | Silence Duration
+        | OpSoxFX SoxFX Audio
         | Merge Audio Audio
         | Sequence Audio Audio
 
-data Source = File Track
-            | Synth Frequency Duration
-            | Silence Duration
-
 instance Functor ProgF where
-    fmap f (Source src k) = Source src(f . k)
     fmap f (Bind op k) = Bind op (f . k)
 
 -- | Our main Monad.
@@ -164,15 +161,15 @@ data Track = Track { trackFormat :: AudioType
 
 -- | Read a 'Track'.
 audioTrack :: Track -> Prog Audio
-audioTrack t = Prog $ liftF $ (Source $ File t) id
+audioTrack t = Prog $ liftF $ (Bind $ File t) id
 
 -- | Generate a sine wave.
 synth :: Frequency -> Duration -> Prog Audio
-synth freq dur = Prog $ liftF $ (Source $ Synth freq dur) id
+synth freq dur = Prog $ liftF $ (Bind $ Synth freq dur) id
 
 -- | Generate silence.
 silence :: Duration -> Prog Audio
-silence dur = Prog $ liftF $ (Source $ Silence dur) id
+silence dur = Prog $ liftF $ (Bind$ Silence dur) id
 
 -- | Join tracks (play one after another).
 sequenceAudio :: Audio -> Audio -> Prog Audio
@@ -187,6 +184,9 @@ seqList (a:as) = do
     sequenceAudio a r
 
 opBPM :: Op -> Maybe BPM
+opBPM (File track) = Just $ trackBPM track
+opBPM (Synth _ _) = Nothing
+opBPM (Silence _) = Nothing
 opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
 opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
 opBPM (Sequence _ _) = Nothing -- could optimize when a & b are close
@@ -197,9 +197,13 @@ soxBPM (SoxPad _) x = x
 soxBPM (SoxGain _) x = x
 
 opStart :: Op -> Maybe Duration
+opStart (File track) = Just $ trackStart track
+opStart (Synth _ _) = Just $ Duration 0
+opStart (Silence _) = Nothing
 opStart (OpSoxFX sfx a) = soxStart sfx <$> aStart a
 opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
 opStart (Sequence a _b) = aStart a
+
 
 soxStart :: SoxFX -> Duration -> Duration
 soxStart (SoxTempo ratio) (Duration x) = Duration $ ratio * x
@@ -213,6 +217,9 @@ coMake op deps =
             }
 
 opCo :: Op -> CObject
+opCo (File _) = coMake "File" []
+opCo (Synth freq dur) = coMake ("Synth (" ++ show freq ++ ", " ++ show dur ++ ")") []
+opCo (Silence dur) = coMake ("Silence (" ++ show dur ++ ")") []
 opCo (OpSoxFX sfx a) = coMake ("SoxFX (" ++ unwords (soxCompile sfx) ++ ")") [a]
 opCo (Merge a b) = coMake "Merge" [a, b]
 opCo (Sequence a b) = coMake "Sequence" [a, b]
@@ -284,6 +291,12 @@ interpretOp (Merge a b) temp =
     execCommand "sox" ["-m", aPath a, aPath b, temp]
 interpretOp (Sequence a b) temp =
     execCommand "sox" [aPath a, aPath b, temp]
+interpretOp (File (Track { trackFormat = fmt, trackPath = path })) temp =
+    decodeFile fmt path temp
+interpretOp (Synth freq dur) temp =
+    genSynth freq dur temp
+interpretOp (Silence dur) temp =
+    genSilence dur temp
 
 decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
 decodeFile Mp3 input output =
@@ -302,10 +315,6 @@ genSilence (Duration dur) output =
 -- | Execute the program: invoke tools that actually do the manipulation.
 run :: Prog Audio -> IO Audio
 run (Prog (Pure x)) = return x
-run (Prog (Free (Source src k))) = do
-    let co = sourceCo src
-    temp <- cached co $ execSource src
-    run $ Prog $ k $ Audio co temp (sourceBPM src) (sourceStart src)
 run (Prog (Free (Bind op k))) = do
     let newBPM = opBPM op
         newStart = opStart op
@@ -313,44 +322,12 @@ run (Prog (Free (Bind op k))) = do
     temp <- cached co $ interpretOp op
     run $ Prog $ k $ Audio co temp newBPM newStart
 
-execSource :: Source -> FilePath -> IO ()
-execSource (File (Track { trackFormat = fmt, trackPath = path })) =
-    decodeFile fmt path
-execSource (Synth freq dur) =
-    genSynth freq dur
-execSource (Silence dur) =
-    genSilence dur
-
-sourceBPM :: Source -> Maybe BPM
-sourceBPM (File track) = Just $ trackBPM track
-sourceBPM (Synth _ _) = Nothing
-sourceBPM (Silence _) = Nothing
-
-sourceStart :: Source -> Maybe Duration
-sourceStart (File track) = Just $ trackStart track
-sourceStart (Synth _ _) = Just $ Duration 0
-sourceStart (Silence _) = Nothing
-
-sourceCo :: Source -> CObject
-sourceCo (File _) =
-    CObject { coOp = "File"
-            , coDeps = []
-            }
-sourceCo (Synth freq dur) =
-    CObject { coOp = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
-            , coDeps = []
-            }
-sourceCo (Silence dur) =
-    CObject { coOp = "Silence (" ++ show dur ++ ")"
-            , coDeps = []
-            }
-
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]
 steps (Prog (Pure _)) = []
-steps (Prog (Free (Source (File tr) k))) = ("decode " ++ show (trackFormat tr)) : steps (Prog (k noAudio))
-steps (Prog (Free (Source (Synth freq dur) k))) = ("synth " ++ show freq ++ " " ++ show dur) : steps (Prog (k noAudio))
-steps (Prog (Free (Source (Silence dur) k))) = ("silence " ++ show dur) : steps (Prog (k noAudio))
+steps (Prog (Free (Bind (File tr) k))) = ("decode " ++ show (trackFormat tr)) : steps (Prog (k noAudio))
+steps (Prog (Free (Bind (Synth freq dur) k))) = ("synth " ++ show freq ++ " " ++ show dur) : steps (Prog (k noAudio))
+steps (Prog (Free (Bind (Silence dur) k))) = ("silence " ++ show dur) : steps (Prog (k noAudio))
 steps (Prog (Free (Bind (OpSoxFX fx _) k))) = ("soxfx " ++ head (soxCompile fx)) : steps (Prog (k noAudio))
 steps (Prog (Free (Bind (Merge _ _) k))) = "merge" : steps (Prog (k noAudio))
 steps (Prog (Free (Bind (Sequence _ _) k))) = "sequence" : steps (Prog (k noAudio))
