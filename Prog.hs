@@ -35,6 +35,8 @@ module Prog ( -- * Be safe kids, use newtypes
               -- * Tools
             , metronome
             , checkBPM
+            , warpTo
+            , alignTo
               -- * Interpreter
             , run
             , steps
@@ -43,6 +45,7 @@ module Prog ( -- * Be safe kids, use newtypes
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Free
+import Data.Maybe
 import System.Cmd
 import Text.Printf
 
@@ -241,6 +244,34 @@ checkBPM track = do
     m <- metronome (trackBPM track) 16
     s <- shiftAudio (trackStart track) m
     mergeAudio a s
+
+-- | Change the tempo of a track (using 'warpAudio') so that it has the same
+-- speed as a destination track.
+warpTo :: Audio -- ^ Destination
+       -> Audio -- ^ Source
+       -> Prog Audio
+warpTo dest src =
+    warpAudio ratio src
+        where
+            ratio = fromMaybe (error "warpTo: no BPM on track") $ do
+                destBPM <- aBPM dest
+                origBPM <- aBPM src
+                return $ bpmRatio destBPM origBPM
+
+-- | Add padding at the beginning of a track so that the first beat coincides
+-- with that of another track.
+alignTo :: Audio -- ^ Destination
+        -> Audio -- ^ Source
+        -> Int -- ^ Beat offset
+        -> Prog Audio
+alignTo dest src beatOff =
+    shiftAudio shiftAmount src
+        where
+            shiftAmount = fromMaybe (error "alignTo: missing a start time or BPM") $ do
+                bpm <- aBPM dest
+                destStart <- aStart dest
+                srcStart <- aStart src
+                return $ durationAdd (durationDiff destStart srcStart) (durationTimes beatOff (beatLen bpm))
 
 execCommand :: String -> [String] -> IO ()
 execCommand cmd args =

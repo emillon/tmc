@@ -6,8 +6,6 @@ module Example ( -- * Tracks
                , exampleBootleg
                ) where
 
-import Data.Maybe
-
 import Prog
 
 -- | Katy Perry - Last Friday Night acapella.
@@ -27,25 +25,6 @@ walkOnBy =
           , trackBPM = BPM 133.756
           , trackStart = Duration 0.023
           }
-
-warpTo :: Audio -> Audio -> Prog Audio
-warpTo dest src =
-    warpAudio ratio src
-        where
-            ratio = fromMaybe (error "warpTo: no BPM on track") $ do
-                destBPM <- aBPM dest
-                origBPM <- aBPM src
-                return $ bpmRatio destBPM origBPM
-
-alignTo :: Audio -> Audio -> Int -> Prog Audio
-alignTo dest src beatOff =
-    shiftAudio shiftAmount src
-        where
-            shiftAmount = fromMaybe (error "alignTo: missing a start time or BPM") $ do
-                bpm <- aBPM dest
-                destStart <- aStart dest
-                srcStart <- aStart src
-                return $ durationAdd (durationDiff destStart srcStart) (durationTimes beatOff (beatLen bpm))
 
 -- | The bootleg itself.
 exampleBootleg :: Prog Audio
