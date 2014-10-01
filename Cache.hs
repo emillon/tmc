@@ -4,6 +4,7 @@
 module Cache ( CObject(..)
              , coHash
              , cached
+             , isCached
              ) where
 
 import Control.Monad
@@ -57,3 +58,8 @@ cached co = do
     ex <- doesFileExist path
     unless ex $ coBuild co path
     return path
+
+-- | Find out if the object already exists.
+-- No guarantees as race conditions can occur.
+isCached :: CObject -> IO Bool
+isCached = doesFileExist . coFile

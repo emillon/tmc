@@ -47,7 +47,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Free
 import Data.Maybe
-import System.Cmd
+import System.Process
 import Text.Printf
 
 import Cache
@@ -284,8 +284,9 @@ alignTo dest src beatOff =
                 return $ durationAdd (durationDiff destStart srcStart) (durationTimes beatOff (beatLen bpm))
 
 execCommand :: String -> [String] -> IO ()
-execCommand cmd args =
-    void $ rawSystem cmd args
+execCommand cmd args = do
+    (_, _, _, p) <- createProcess (proc cmd args) { std_out = CreatePipe, std_err = CreatePipe }
+    void $ waitForProcess p
 
 interpretOp :: Op -> FilePath -> IO ()
 interpretOp (OpSoxFX fx (Audio _ input _ _)) temp =
@@ -326,6 +327,10 @@ run (Prog (Free (Bind op k))) = do
                      , coDeps = map (coHash . aCache) deps
                      , coBuild = interpretOp op
                      }
+    hit <- isCached co
+    let cachedMsg = if hit then "[ HIT ]" else "[ EXP ]"
+        msg = cachedMsg ++ " Running op: " ++ showShortOp op
+    putStrLn msg
     temp <- cached co
     run $ Prog $ k $ Audio co temp newBPM newStart
 
