@@ -37,6 +37,7 @@ module Prog ( -- * Be safe kids, use newtypes
             , checkBPM
             , warpTo
             , alignTo
+            , play
               -- * Interpreter
             , run
             , steps
@@ -343,3 +344,8 @@ showShortOp (Sequence _ _) = "sequence"
 
 noAudio :: Audio
 noAudio = undefined
+
+-- | Play audio.
+play :: Audio -> IO ()
+play a =
+    void $ rawSystem "mpv" [aPath a]
