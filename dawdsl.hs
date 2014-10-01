@@ -1,6 +1,6 @@
 
 import Example
-import Run
+import Prog
 
 main :: IO ()
 main = do
