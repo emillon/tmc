@@ -21,8 +21,17 @@ import qualified Data.ByteString as B
 data CObject =
     CObject { coOp :: String
             , coDeps :: [B.ByteString]
+            , coBuild :: FilePath -> IO ()
             }
-    deriving (Show)
+
+instance Show CObject where
+    show (CObject { coOp = op, coDeps = deps }) =
+        concat [ "CObject { coOp = "
+               , show op
+               , ", coDeps = "
+               , show deps
+               , ", _ }"
+               ]
 
 -- | Turn a 'CObject' to a 'ByteString' to express it as a dependency.
 coHash :: CObject -> B.ByteString
@@ -42,9 +51,9 @@ byteStringToString :: B.ByteString -> String
 byteStringToString = map (chr . fromIntegral) . B.unpack
 
 -- | Build or retrieve an object associated to a 'CObject'.
-cached :: CObject -> (FilePath -> IO ()) -> IO FilePath
-cached co act = do
+cached :: CObject -> IO FilePath
+cached co = do
     let path = coFile co
     ex <- doesFileExist path
-    unless ex $ act path
+    unless ex $ coBuild co path
     return path

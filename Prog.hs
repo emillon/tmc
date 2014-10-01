@@ -210,19 +210,21 @@ soxStart (SoxTempo ratio) (Duration x) = Duration $ ratio * x
 soxStart (SoxPad (Duration shift)) (Duration x) = Duration $ shift + x
 soxStart (SoxGain _) x = x
 
-coMake :: String -> [Audio] -> CObject
-coMake op deps =
-    CObject { coOp = op
-            , coDeps = map (coHash . aCache) deps
-            }
+opDescr :: Op -> String
+opDescr (File _) = "File"
+opDescr (Synth freq dur) = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
+opDescr (Silence dur) = "Silence (" ++ show dur ++ ")"
+opDescr (OpSoxFX sfx _) = "SoxFX (" ++ unwords (soxCompile sfx) ++ ")"
+opDescr (Merge _ _) = "Merge"
+opDescr (Sequence _ _) = "Sequence"
 
-opCo :: Op -> CObject
-opCo (File _) = coMake "File" []
-opCo (Synth freq dur) = coMake ("Synth (" ++ show freq ++ ", " ++ show dur ++ ")") []
-opCo (Silence dur) = coMake ("Silence (" ++ show dur ++ ")") []
-opCo (OpSoxFX sfx a) = coMake ("SoxFX (" ++ unwords (soxCompile sfx) ++ ")") [a]
-opCo (Merge a b) = coMake "Merge" [a, b]
-opCo (Sequence a b) = coMake "Sequence" [a, b]
+opDeps :: Op -> [Audio]
+opDeps (File _) = []
+opDeps (Synth _ _) = []
+opDeps (Silence _) = []
+opDeps (OpSoxFX _ a) = [a]
+opDeps (Merge a b) = [a, b]
+opDeps (Sequence a b) = [a, b]
 
 -- | A track that only does beep beep.
 -- There are actually two different beeps, a high one and a low one.
@@ -318,8 +320,12 @@ run (Prog (Pure x)) = return x
 run (Prog (Free (Bind op k))) = do
     let newBPM = opBPM op
         newStart = opStart op
-        co = opCo op
-    temp <- cached co $ interpretOp op
+        deps = opDeps op
+        co = CObject { coOp = opDescr op
+                     , coDeps = map (coHash . aCache) deps
+                     , coBuild = interpretOp op
+                     }
+    temp <- cached co
     run $ Prog $ k $ Audio co temp newBPM newStart
 
 -- | A pure version of 'run': just return the steps that will be done.
