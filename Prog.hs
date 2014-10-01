@@ -302,34 +302,48 @@ genSilence (Duration dur) output =
 -- | Execute the program: invoke tools that actually do the manipulation.
 run :: Prog Audio -> IO Audio
 run (Prog (Pure x)) = return x
-run (Prog (Free (Source (File track) k))) = do
-    let fmt = trackFormat track
-        path = trackPath track
-        bpm = trackBPM track
-        start = trackStart track
-        co = CObject { coOp = "File"
-                     , coDeps = []
-                     }
-    temp <- cached co $ decodeFile fmt path
-    run $ Prog $ k $ Audio co temp (Just bpm) (Just start)
-run (Prog (Free (Source (Synth freq dur) k))) = do
-    let co = CObject { coOp = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
-                     , coDeps = []
-                     }
-    temp <- cached co $ genSynth freq dur
-    run $ Prog $ k $ Audio co temp Nothing (Just (Duration 0))
-run (Prog (Free (Source (Silence dur) k))) = do
-    let co = CObject { coOp = "Silence (" ++ show dur ++ ")"
-                     , coDeps = []
-                     }
-    temp <- cached co $ genSilence dur
-    run $ Prog $ k $ Audio co temp Nothing Nothing
+run (Prog (Free (Source src k))) = do
+    let co = sourceCo src
+    temp <- cached co $ execSource src
+    run $ Prog $ k $ Audio co temp (sourceBPM src) (sourceStart src)
 run (Prog (Free (Bind op k))) = do
     let newBPM = opBPM op
         newStart = opStart op
         co = opCo op
     temp <- cached co $ interpretOp op
     run $ Prog $ k $ Audio co temp newBPM newStart
+
+execSource :: Source -> FilePath -> IO ()
+execSource (File (Track { trackFormat = fmt, trackPath = path })) =
+    decodeFile fmt path
+execSource (Synth freq dur) =
+    genSynth freq dur
+execSource (Silence dur) =
+    genSilence dur
+
+sourceBPM :: Source -> Maybe BPM
+sourceBPM (File track) = Just $ trackBPM track
+sourceBPM (Synth _ _) = Nothing
+sourceBPM (Silence _) = Nothing
+
+sourceStart :: Source -> Maybe Duration
+sourceStart (File track) = Just $ trackStart track
+sourceStart (Synth _ _) = Just $ Duration 0
+sourceStart (Silence _) = Nothing
+
+sourceCo :: Source -> CObject
+sourceCo (File _) =
+    CObject { coOp = "File"
+            , coDeps = []
+            }
+sourceCo (Synth freq dur) =
+    CObject { coOp = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
+            , coDeps = []
+            }
+sourceCo (Silence dur) =
+    CObject { coOp = "Silence (" ++ show dur ++ ")"
+            , coDeps = []
+            }
 
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]
