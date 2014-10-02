@@ -1,6 +1,7 @@
 name: tmc
 version: 0.0.0.1
 build-type: Simple
+cabal-version: >= 1.2
 library
     exposed-modules: Music.TMC.Cache
                      Music.TMC.Example
