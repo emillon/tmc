@@ -32,6 +32,7 @@ module Prog ( -- * Be safe kids, use newtypes
             , mergeAudio
             , sequenceAudio
             , seqList
+            , cutAudio
               -- * Tools
             , metronome
             , checkBPM
@@ -125,11 +126,13 @@ newtype Prog a = Prog (Free ProgF a)
 data SoxFX = SoxTempo Double
            | SoxPad Duration
            | SoxGain Gain
+           | SoxTrim Duration Duration
 
 soxCompile :: SoxFX -> [String]
 soxCompile (SoxTempo ratio) = ["tempo", showD ratio]
 soxCompile (SoxPad (Duration amount)) = ["pad", showD amount]
 soxCompile (SoxGain (Gain amount)) = ["gain", showD amount]
+soxCompile (SoxTrim (Duration start) (Duration end)) = ["trim", showD start, showD end]
 
 showD :: Double -> String
 showD d = printf "%f" d
@@ -184,6 +187,12 @@ seqList (a:as) = do
     r <- seqList as
     sequenceAudio a r
 
+-- | Take only part of a track.
+cutAudio :: Duration -- ^ Start
+         -> Duration -- ^ End
+         -> Audio -> Prog Audio
+cutAudio start end = soxFX $ SoxTrim start end
+
 opBPM :: Op -> Maybe BPM
 opBPM (File track) = Just $ trackBPM track
 opBPM (Synth _ _) = Nothing
@@ -196,20 +205,24 @@ soxBPM :: SoxFX -> BPM -> BPM
 soxBPM (SoxTempo ratio) (BPM x) = BPM $ ratio * x
 soxBPM (SoxPad _) x = x
 soxBPM (SoxGain _) x = x
+soxBPM (SoxTrim _ _) x = x
 
 opStart :: Op -> Maybe Duration
 opStart (File track) = Just $ trackStart track
 opStart (Synth _ _) = Just $ Duration 0
 opStart (Silence _) = Nothing
-opStart (OpSoxFX sfx a) = soxStart sfx <$> aStart a
+opStart (OpSoxFX sfx a) = do
+    sa <- aStart a
+    soxStart sfx sa
 opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
 opStart (Sequence a _b) = aStart a
 
 
-soxStart :: SoxFX -> Duration -> Duration
-soxStart (SoxTempo ratio) (Duration x) = Duration $ ratio * x
-soxStart (SoxPad (Duration shift)) (Duration x) = Duration $ shift + x
-soxStart (SoxGain _) x = x
+soxStart :: SoxFX -> Duration -> Maybe Duration
+soxStart (SoxTempo ratio) (Duration x) = Just $ Duration $ ratio * x
+soxStart (SoxPad (Duration shift)) (Duration x) = Just $ Duration $ shift + x
+soxStart (SoxGain _) x = Just x
+soxStart (SoxTrim _ _) _ = Nothing -- maybe it's possible to compute it
 
 opDescr :: Op -> String
 opDescr (File a) = "File (" ++ show (trackPath a) ++ ")"
