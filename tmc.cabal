@@ -1,0 +1,11 @@
+name: tmc
+version: 0.0.0.1
+build-type: Simple
+library
+    exposed-modules: Prog
+    build-depends: base
+                 , bytestring
+                 , cryptohash
+                 , directory
+                 , free
+                 , process
