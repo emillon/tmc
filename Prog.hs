@@ -217,10 +217,9 @@ opStart (OpSoxFX sfx a) = do
 opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
 opStart (Sequence a _b) = aStart a
 
-
 soxStart :: SoxFX -> Duration -> Maybe Duration
 soxStart (SoxTempo ratio) (Duration x) = Just $ Duration $ ratio * x
-soxStart (SoxPad (Duration shift)) (Duration x) = Just $ Duration $ shift + x
+soxStart (SoxPad shift) x = Just $ durationAdd shift x
 soxStart (SoxGain _) x = Just x
 soxStart (SoxTrim _ _) _ = Nothing -- maybe it's possible to compute it
 
