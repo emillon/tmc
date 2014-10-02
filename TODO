@@ -1,1 +1,2 @@
-  - add a ToArg class for stuff that can be passed to sox
+  - display hash of objects being produced
+  - put Track data in a json file and hash it in the CObject
