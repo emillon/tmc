@@ -1,11 +1,12 @@
 -- | A cache system for objects with a structured "build" operation.
 -- 
 -- Every object has a recipe containing its dependencies and the operation.
-module Cache ( CObject(..)
-             , coHash
-             , cached
-             , isCached
-             ) where
+module Music.TMC.Cache
+    ( CObject(..)
+    , coHash
+    , cached
+    , isCached
+    ) where
 
 import Control.Monad
 import Crypto.Hash.SHA1

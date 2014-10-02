@@ -1,12 +1,13 @@
 -- | An example bootleg.
-module Example ( -- * Tracks
-                 katy
-               , walkOnBy
-                 -- * Bootleg
-               , exampleBootleg
-               ) where
+module Music.TMC.Example
+    ( -- * Tracks
+      katy
+    , walkOnBy
+      -- * Bootleg
+    , exampleBootleg
+    ) where
 
-import Prog
+import Music.TMC.Prog
 
 -- | Katy Perry - Last Friday Night acapella.
 katy :: Track
@@ -35,3 +36,10 @@ exampleBootleg = do
     shiftedAcap <- alignTo instr warpedAcap 16
     gainAcap <- gainAudio (Gain (-3)) shiftedAcap
     mergeAudio instr gainAcap
+
+-- | Compile the bootleg.
+main :: IO ()
+main = do
+    mapM_ putStrLn $ steps exampleBootleg
+    f <- run exampleBootleg
+    print f

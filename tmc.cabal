@@ -2,7 +2,9 @@ name: tmc
 version: 0.0.0.1
 build-type: Simple
 library
-    exposed-modules: Prog
+    exposed-modules: Music.TMC.Cache
+                     Music.TMC.Example
+                     Music.TMC.Prog
     build-depends: base
                  , bytestring
                  , cryptohash

@@ -2,47 +2,48 @@
 
 -- | The DSL itself.
 
-module Prog ( -- * Be safe kids, use newtypes
-              BPM(..)
-            , bpmRatio
-            , beatLen
-            , Duration(..)
-            , durationAdd
-            , durationDiff
-            , durationTimes
-            , Frequency(..)
-            , Gain(..)
-              -- * Audio Tracks
-            , Audio
-            , aBPM
-            , aStart
-              -- * The DSL
-              -- ** Type
-            , Prog
-              -- ** Sources
-            , Track(..)
-            , AudioType(..)
-            , audioTrack
-            , synth
-            , silence
-              -- ** Operations
-            , warpAudio
-            , shiftAudio
-            , gainAudio
-            , mergeAudio
-            , sequenceAudio
-            , seqList
-            , cutAudio
-              -- * Tools
-            , metronome
-            , checkBPM
-            , warpTo
-            , alignTo
-            , play
-              -- * Interpreter
-            , run
-            , steps
-            ) where
+module Music.TMC.Prog
+    ( -- * Be safe kids, use newtypes
+      BPM(..)
+    , bpmRatio
+    , beatLen
+    , Duration(..)
+    , durationAdd
+    , durationDiff
+    , durationTimes
+    , Frequency(..)
+    , Gain(..)
+      -- * Audio Tracks
+    , Audio
+    , aBPM
+    , aStart
+      -- * The DSL
+      -- ** Type
+    , Prog
+      -- ** Sources
+    , Track(..)
+    , AudioType(..)
+    , audioTrack
+    , synth
+    , silence
+      -- ** Operations
+    , warpAudio
+    , shiftAudio
+    , gainAudio
+    , mergeAudio
+    , sequenceAudio
+    , seqList
+    , cutAudio
+      -- * Tools
+    , metronome
+    , checkBPM
+    , warpTo
+    , alignTo
+    , play
+      -- * Interpreter
+    , run
+    , steps
+    ) where
 
 import Control.Applicative
 import Control.Monad
@@ -51,7 +52,7 @@ import Data.Maybe
 import System.Process
 import Text.Printf
 
-import Cache
+import Music.TMC.Cache
 
 -- | Beats Per Minute.
 newtype BPM = BPM Double
