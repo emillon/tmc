@@ -310,24 +310,16 @@ interpretOp (Sequence a b) temp =
     execCommand "sox" [aPath a, aPath b, temp]
 interpretOp (File (Track { trackFormat = fmt, trackPath = path })) temp =
     decodeFile fmt path temp
-interpretOp (Synth freq dur) temp =
-    genSynth freq dur temp
-interpretOp (Silence dur) temp =
-    genSilence dur temp
+interpretOp (Synth (Frequency freq) (Duration dur)) temp =
+    execCommand "sox" ["-n", "-r", "44100", temp, "synth", showD dur, "sine", showD freq]
+interpretOp (Silence (Duration dur)) temp =
+    execCommand "sox" ["-n", "-r", "44100", temp, "trim", "0", showD dur]
 
 decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
 decodeFile Mp3 input output =
     execCommand "lame" ["--decode", input, output]
 decodeFile Flac input output =
     execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
-
-genSynth :: Frequency -> Duration -> FilePath -> IO ()
-genSynth (Frequency freq) (Duration dur) output =
-    execCommand "sox" ["-n", "-r", "44100", output, "synth", showD dur, "sine", showD freq]
-
-genSilence :: Duration -> FilePath -> IO ()
-genSilence (Duration dur) output =
-    execCommand "sox" ["-n", "-r", "44100", output, "trim", "0", showD dur]
 
 -- | Execute the program: invoke tools that actually do the manipulation.
 run :: Prog Audio -> IO Audio
