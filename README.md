@@ -1,4 +1,4 @@
-# TMC - Tiny Music Compiler
+# TMC - Tiny Music Compiler [![Build Status](https://travis-ci.org/emillon/tmc.svg)](https://travis-ci.org/emillon/tmc)
 
 (the compiler is tiny, not the music)
 
