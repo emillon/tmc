@@ -4,6 +4,8 @@ module Music.TMC.Tools
     ( play
     , warpTo
     , alignTo
+    , metronome
+    , checkBPM
     ) where
 
 import Control.Monad
@@ -45,3 +47,31 @@ alignTo dest src beatOff =
 play :: Audio -> IO ()
 play a =
     void $ rawSystem "mpv" [aPath a]
+
+-- | A track that only does beep beep.
+-- There are actually two different beeps, a high one and a low one.
+-- It does H L L L H L L L... (4/4)
+metronome :: BPM
+          -> Int -- ^ Number of bars
+          -> Prog Audio
+metronome bpm nbars = do
+    hiBeep <- synth hiFreq beepLen
+    sil <- silence silenceLen
+    loBeep <- synth loFreq beepLen
+    bar <- seqList [hiBeep, sil, loBeep, sil, loBeep, sil, loBeep, sil]
+    seqList $ replicate nbars bar
+        where
+            beepLen = Duration 0.1
+            hiFreq = Frequency $ 2 * baseFreq
+            loFreq = Frequency baseFreq
+            baseFreq = 440
+            silenceLen = durationDiff (beatLen bpm) beepLen
+
+-- | Play a metronome synchronized on top of a track.
+-- It should be an easy way to know if the track's metadata is correct.
+checkBPM :: Track -> Prog Audio
+checkBPM track = do
+    a <- audioTrack track
+    m <- metronome (trackBPM track) 16
+    s <- shiftAudio (trackStart track) m
+    mergeAudio a s
