@@ -20,7 +20,7 @@ tests :: Test
 tests = TestList ["Optimizer" ~: optimizeTests]
 
 optimizeTests :: Test
-optimizeTests = TestList $ concatMap makeOptTC [(tc1, 2, 1)]
+optimizeTests = TestList $ concatMap makeOptTC tcs
     where
         makeOptTC (prog, snorm, sopt) =
             [ snorm ~=? length (steps prog)
@@ -28,6 +28,13 @@ optimizeTests = TestList $ concatMap makeOptTC [(tc1, 2, 1)]
             ]
         da = Duration 1
         db = Duration 2
+        tcs = [ (tc1, 2, 1)
+              , (tc2, 3, 2)
+              ]
         tc1 = do
             x <- shiftAudio da noAudio
             shiftAudio db x
+        tc2 = do
+            x <- gainAudio (Gain (-3)) noAudio
+            y <- shiftAudio da x
+            shiftAudio db y

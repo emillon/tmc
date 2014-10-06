@@ -13,15 +13,22 @@ import Music.TMC.Types
 -- | Optimize programs so that they can be compiled in less steps.
 -- (or at worst, do nothing)
 optimize :: Prog a -> Prog a
-optimize = optimizePads
+optimize (Prog p) = Prog $ optimizeF p
+
+optimizeF :: Free ProgF a -> Free ProgF a
+optimizeF = optimizePads
 
 -- | pad d1 (pad d2) A = pad (d1 + d2) A
-optimizePads :: Prog a -> Prog a
-optimizePads noopt@(Prog p) =
-    fromMaybe noopt $ do
+optimizePads :: Free ProgF a -> Free ProgF a
+optimizePads p =
+    fromMaybe (optRest p) $ do
         (d1, a, k0) <- extractPad p
         (d2, _, k) <- extractPad (k0 noAudio)
-        return $ Prog (Free (Bind (OpSoxFX (SoxPad (durationAdd d1 d2)) a) k))
+        return $ Free (Bind (OpSoxFX (SoxPad (durationAdd d1 d2)) a) k)
+
+optRest :: Free ProgF a -> Free ProgF a
+optRest p@(Pure _) = p
+optRest (Free x) = Free $ fmap optimizeF x
 
 extractPad :: Free ProgF a -> Maybe (Duration, Audio, Audio -> Free ProgF a)
 extractPad (Free (Bind (OpSoxFX (SoxPad d) a) k)) = Just (d, a, k)
