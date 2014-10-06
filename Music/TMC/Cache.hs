@@ -65,12 +65,11 @@ isCached = doesFileExist . coFile
 
 -- | Build a 'CObject'.
 makeCo :: String -- ^ Description
-       -> [a] -- ^ Dependencies
-       -> (a -> CObject) -- ^ How to build a CObject for a dependency
+       -> [CObject] -- ^ Dependencies
        -> (FilePath -> IO ()) -- ^ How to build it
        -> CObject
-makeCo descr deps access builder =
+makeCo descr deps builder =
     CObject { coOp = descr
-            , coDeps = map (coHash . access) deps
+            , coDeps = map coHash deps
             , coBuild = COBuilder builder
             }
