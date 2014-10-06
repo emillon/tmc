@@ -327,11 +327,7 @@ run (Prog (Pure x)) = return x
 run (Prog (Free (Bind op k))) = do
     let newBPM = opBPM op
         newStart = opStart op
-        deps = opDeps op
-        co = CObject { coOp = opDescr op
-                     , coDeps = map (coHash . aCache) deps
-                     , coBuild = interpretOp op
-                     }
+        co = makeCo (opDescr op) (opDeps op) aCache (interpretOp op)
     hit <- isCached co
     let cachedMsg = if hit then "[ HIT ]" else "[ EXP ]"
         msg = cachedMsg ++ " Running op: " ++ showShortOp op

@@ -2,10 +2,10 @@
 -- 
 -- Every object has a recipe containing its dependencies and the operation.
 module Music.TMC.Cache
-    ( CObject(..)
-    , coHash
+    ( CObject
     , cached
     , isCached
+    , makeCo
     ) where
 
 import Control.Monad
@@ -23,17 +23,14 @@ import qualified Data.ByteString as B
 data CObject =
     CObject { coOp :: String
             , coDeps :: [B.ByteString]
-            , coBuild :: FilePath -> IO ()
+            , coBuild :: COBuilder
             }
+    deriving (Show)
 
-instance Show CObject where
-    show (CObject { coOp = op, coDeps = deps }) =
-        concat [ "CObject { coOp = "
-               , show op
-               , ", coDeps = "
-               , show deps
-               , ", _ }"
-               ]
+newtype COBuilder = COBuilder (FilePath -> IO ())
+
+instance Show COBuilder where
+    show _ = "COBuilder _"
 
 -- | Turn a 'CObject' to a 'ByteString' to express it as a dependency.
 coHash :: CObject -> B.ByteString
@@ -56,11 +53,24 @@ byteStringToString = map (chr . fromIntegral) . B.unpack
 cached :: CObject -> IO FilePath
 cached co = do
     let path = coFile co
+        COBuilder build = coBuild co
     ex <- doesFileExist path
-    unless ex $ coBuild co path
+    unless ex $ build path
     return path
 
 -- | Find out if the object already exists.
 -- No guarantees as race conditions can occur.
 isCached :: CObject -> IO Bool
 isCached = doesFileExist . coFile
+
+-- | Build a 'CObject'.
+makeCo :: String -- ^ Description
+       -> [a] -- ^ Dependencies
+       -> (a -> CObject) -- ^ How to build a CObject for a dependency
+       -> (FilePath -> IO ()) -- ^ How to build it
+       -> CObject
+makeCo descr deps access builder =
+    CObject { coOp = descr
+            , coDeps = map (coHash . access) deps
+            , coBuild = COBuilder builder
+            }
