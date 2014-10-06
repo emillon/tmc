@@ -20,7 +20,7 @@ tests :: Test
 tests = TestList ["Optimizer" ~: optimizeTests]
 
 optimizeTests :: Test
-optimizeTests = TestList $ concatMap makeOptTC [(tc1, 2, 2)]
+optimizeTests = TestList $ concatMap makeOptTC [(tc1, 2, 1)]
     where
         makeOptTC (prog, snorm, sopt) =
             [ snorm ~=? length (steps prog)
