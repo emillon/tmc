@@ -17,3 +17,7 @@ library
                  , directory
                  , free
                  , process
+test-suite hunittests
+    type: exitcode-stdio-1.0
+    ghc-options: -Wall -Werror
+    main-is: Tests.hs
