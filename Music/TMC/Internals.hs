@@ -1,5 +1,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+-- | How TMC works under the hood.
+-- Most of the types defined here are re-exported through 'Music.TMC.Prog', but
+-- in order to keep their constructors hidden, they have to be defined here.
+
 module Music.TMC.Internals
     ( Audio(..)
     , AudioType(..)
@@ -15,6 +19,7 @@ import Control.Monad.Free
 import Music.TMC.Cache
 import Music.TMC.Types
 
+-- | The free functor that enables us to create 'Prog'.
 data ProgF a = Bind Op (Audio -> a)
 
 instance Functor ProgF where
@@ -24,6 +29,8 @@ instance Functor ProgF where
 newtype Prog a = Prog (Free ProgF a)
     deriving (Monad)
 
+-- | An operation on audio files.
+-- Basically it's the non-monadic interface behind 'Prog'.
 data Op = File Track
         | Synth Frequency Duration
         | Silence Duration
@@ -31,6 +38,7 @@ data Op = File Track
         | Merge Audio Audio
         | Sequence Audio Audio
 
+-- | A SoX effect.
 data SoxFX = SoxTempo Double
            | SoxPad Duration
            | SoxGain Gain

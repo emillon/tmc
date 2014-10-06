@@ -1,3 +1,5 @@
+-- | Higher-level tools defined on programs.
+
 module Music.TMC.Tools
     ( play
     , warpTo
