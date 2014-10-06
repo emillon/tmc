@@ -3,6 +3,7 @@
 module Music.TMC.Prog
     ( -- * Audio Tracks
       Audio
+    , aPath
     , aBPM
     , aStart
       -- * The DSL

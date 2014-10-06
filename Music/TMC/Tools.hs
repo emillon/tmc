@@ -11,7 +11,6 @@ import Data.Maybe
 import System.Process
 
 import Music.TMC.Prog
-import Music.TMC.Internals
 import Music.TMC.Types
 
 -- | Change the tempo of a track (using 'warpAudio') so that it has the same
