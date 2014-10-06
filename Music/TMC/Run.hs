@@ -3,6 +3,7 @@
 module Music.TMC.Run
     ( run
     , steps
+    , noAudio
     )
     where
 
@@ -104,6 +105,7 @@ decodeFile Mp3 input output =
 decodeFile Flac input output =
     execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
 
+-- | A useful 'Audio' value for testing.
 noAudio :: Audio
 noAudio = undefined
 

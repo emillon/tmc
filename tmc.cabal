@@ -6,6 +6,7 @@ library
     ghc-options: -Wall
     exposed-modules: Music.TMC.Cache
                      Music.TMC.Example
+                     Music.TMC.Optimize
                      Music.TMC.Prog
                      Music.TMC.Run
                      Music.TMC.Tools
@@ -21,3 +22,4 @@ test-suite hunittests
     type: exitcode-stdio-1.0
     ghc-options: -Wall -Werror
     main-is: Tests.hs
+    build-depends: HUnit
