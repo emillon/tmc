@@ -5,9 +5,14 @@ module Music.TMC.Example
     , walkOnBy
       -- * Bootleg
     , exampleBootleg
+      -- * Go!
+    , main
     ) where
 
 import Music.TMC.Prog
+import Music.TMC.Run
+import Music.TMC.Tools
+import Music.TMC.Types
 
 -- | Katy Perry - Last Friday Night acapella.
 katy :: Track

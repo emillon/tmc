@@ -6,6 +6,10 @@ library
     exposed-modules: Music.TMC.Cache
                      Music.TMC.Example
                      Music.TMC.Prog
+                     Music.TMC.Run
+                     Music.TMC.Tools
+                     Music.TMC.Types
+    other-modules: Music.TMC.Internals
     build-depends: base
                  , bytestring
                  , cryptohash
