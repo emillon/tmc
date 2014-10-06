@@ -16,15 +16,20 @@ optimize :: Prog a -> Prog a
 optimize (Prog p) = Prog $ optimizeF p
 
 optimizeF :: Free ProgF a -> Free ProgF a
-optimizeF = optimizePads
+optimizeF = applyOpt optimizePads
+
+type OptStep a = Free ProgF a -> Maybe (Free ProgF a)
+
+applyOpt :: OptStep a -> Free ProgF a -> Free ProgF a
+applyOpt step p =
+    fromMaybe (optRest p) (step p)
 
 -- | pad d1 (pad d2) A = pad (d1 + d2) A
-optimizePads :: Free ProgF a -> Free ProgF a
-optimizePads p =
-    fromMaybe (optRest p) $ do
-        (d1, a, k0) <- extractPad p
-        (d2, _, k) <- extractPad (k0 noAudio)
-        return $ Free (Bind (OpSoxFX (SoxPad (durationAdd d1 d2)) a) k)
+optimizePads :: OptStep a
+optimizePads p = do
+    (d1, a, k0) <- extractPad p
+    (d2, _, k) <- extractPad (k0 noAudio)
+    return $ Free (Bind (OpSoxFX (SoxPad (durationAdd d1 d2)) a) k)
 
 optRest :: Free ProgF a -> Free ProgF a
 optRest p@(Pure _) = p
