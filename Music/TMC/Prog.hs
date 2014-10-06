@@ -163,6 +163,7 @@ data Track = Track { trackFormat :: AudioType
                    , trackBPM :: BPM
                    , trackStart :: Duration
                    }
+    deriving (Show)
 
 -- | Read a 'Track'.
 audioTrack :: Track -> Prog Audio
@@ -225,7 +226,7 @@ soxStart (SoxGain _) x = Just x
 soxStart (SoxTrim _ _) _ = Nothing -- maybe it's possible to compute it
 
 opDescr :: Op -> String
-opDescr (File a) = "File (" ++ show (trackPath a) ++ ")"
+opDescr (File a) = "File (" ++ show a ++ ")"
 opDescr (Synth freq dur) = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
 opDescr (Silence dur) = "Silence (" ++ show dur ++ ")"
 opDescr (OpSoxFX sfx _) = "SoxFX (" ++ unwords (soxCompile sfx) ++ ")"
