@@ -66,7 +66,7 @@ metronome bpm nbars = do
     sil <- silence silenceLen
     loBeep <- synth loFreq beepLen
     bar <- seqList [hiBeep, sil, loBeep, sil, loBeep, sil, loBeep, sil]
-    seqList $ replicate nbars bar
+    replicateAudio nbars bar
         where
             beepLen = Duration 0.1
             hiFreq = Frequency $ 2 * baseFreq

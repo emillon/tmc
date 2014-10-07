@@ -22,6 +22,7 @@ module Music.TMC.Prog
     , mergeAudio
     , sequenceAudio
     , seqList
+    , replicateAudio
     , cutAudio
     ) where
 
@@ -77,6 +78,11 @@ seqList [a] = return a
 seqList (a:as) = do
     r <- seqList as
     sequenceAudio a r
+
+-- | N times the same sound.
+replicateAudio :: Int -> Audio -> Prog Audio
+replicateAudio n a =
+    seqList $ replicate n a
 
 -- | Take only part of a track.
 cutAudio :: Duration -- ^ Start
