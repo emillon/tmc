@@ -19,6 +19,9 @@ isSuccess c =
 tests :: Test
 tests = TestList ["Optimizer" ~: optimizeTests]
 
+noAudio :: Audio
+noAudio = error "noAudio"
+
 optimizeTests :: Test
 optimizeTests = TestList $ concatMap makeOptTC tcs
     where

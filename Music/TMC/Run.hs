@@ -3,7 +3,7 @@
 module Music.TMC.Run
     ( run
     , steps
-    , noAudio
+    , audioMeta
     )
     where
 
@@ -105,25 +105,31 @@ decodeFile Mp3 input output =
 decodeFile Flac input output =
     execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
 
--- | A useful 'Audio' value for testing.
-noAudio :: Audio
-noAudio = undefined
+-- | Build a shell 'Audio' object without a useable 'aPath'.
+-- This way it can be used both in pure and impure code.
+audioMeta :: Op -> Audio
+audioMeta op =
+    Audio
+        { aCache = makeCo (opDescr op) (map aCache $ opDeps op) (interpretOp op)
+        , aPath = error "audioMeta: no temp file"
+        , aBPM = opBPM op
+        , aStart = opStart op
+        }
 
 -- | Execute the program: invoke tools that actually do the manipulation.
 run :: Prog Audio -> IO Audio
 run (Prog (Pure x)) = return x
 run (Prog (Free (Bind op k))) = do
-    let newBPM = opBPM op
-        newStart = opStart op
-        co = makeCo (opDescr op) (map aCache $ opDeps op) (interpretOp op)
+    let am = audioMeta op
+        co = aCache am
     hit <- isCached co
     let cachedMsg = if hit then "[ HIT ]" else "[ EXP ]"
         msg = cachedMsg ++ " Running op: " ++ showShortOp op
     putStrLn msg
     temp <- cached co
-    run $ Prog $ k $ Audio co temp newBPM newStart
+    run $ Prog $ k $ am { aPath = temp }
 
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]
 steps (Prog (Pure _)) = []
-steps (Prog (Free (Bind op k))) = showShortOp op : steps (Prog (k noAudio))
+steps (Prog (Free (Bind op k))) = showShortOp op : steps (Prog (k (audioMeta op)))

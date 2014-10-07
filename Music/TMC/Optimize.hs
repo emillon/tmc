@@ -7,7 +7,6 @@ module Music.TMC.Optimize
 import Control.Monad.Free
 import Data.Maybe
 import Music.TMC.Internals
-import Music.TMC.Run (noAudio)
 import Music.TMC.Types
 
 -- | Optimize programs so that they can be compiled in less steps.
@@ -28,7 +27,7 @@ applyOpt step p =
 optimizePads :: OptStep a
 optimizePads p = do
     (d1, a, k0) <- extractPad p
-    (d2, _, k) <- extractPad (k0 noAudio)
+    (d2, _, k) <- extractPad (k0 a)
     return $ Free (Bind (OpSoxFX (SoxPad (durationAdd d1 d2)) a) k)
 
 optRest :: Free ProgF a -> Free ProgF a
