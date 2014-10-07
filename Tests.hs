@@ -30,7 +30,7 @@ optimizeTests = TestList $ concatMap makeOptTC tcs
         db = Duration 2
         tcs = [ (tc1, 2, 1)
               , (tc2, 3, 2)
-              , (tc3, 15, 15)
+              , (tc3, 4, 4)
               ]
         tc1 = do
             x <- shiftAudio da noAudio

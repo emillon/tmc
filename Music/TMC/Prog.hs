@@ -91,8 +91,16 @@ seqList (a:as) = do
 
 -- | N times the same sound.
 replicateAudio :: Int -> Audio -> Prog Audio
-replicateAudio n a =
-    seqList $ replicate n a
+replicateAudio n _ | n < 0 = error "replicateAudio"
+replicateAudio 0 _ = error "replicateAudio 0"
+replicateAudio 1 a = return a
+replicateAudio n a = do
+    let (q, r) = n `quotRem` 2
+    half <- replicateAudio q a
+    base <- sequenceAudio half half
+    if r == 1
+        then sequenceAudio a base
+        else return base
 
 -- | Take only part of a track.
 cutAudio :: Duration -- ^ Start
