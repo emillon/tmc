@@ -27,8 +27,13 @@ module Music.TMC.Prog
 
 import Control.Monad.Free
 
+import Music.TMC.Cache
 import Music.TMC.Internals
 import Music.TMC.Types
+
+-- | Where this track is stored.
+aPath :: Audio -> FilePath
+aPath = coFile . aCache
 
 soxFX :: SoxFX -> Audio -> Prog Audio
 soxFX fx a = Prog $ liftF $ Bind (OpSoxFX fx a) id

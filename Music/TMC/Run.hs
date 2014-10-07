@@ -15,6 +15,7 @@ import Text.Printf
 
 import Music.TMC.Cache
 import Music.TMC.Internals
+import Music.TMC.Prog
 import Music.TMC.Types
 
 opBPM :: Op -> Maybe BPM
@@ -86,8 +87,8 @@ execCommand cmd args = do
     void $ waitForProcess p
 
 interpretOp :: Op -> FilePath -> IO ()
-interpretOp (OpSoxFX fx (Audio _ input _ _)) temp =
-    execCommand "sox" $ [input, temp] ++ soxCompile fx
+interpretOp (OpSoxFX fx a) temp =
+    execCommand "sox" $ [aPath a, temp] ++ soxCompile fx
 interpretOp (Merge a b) temp =
     execCommand "sox" ["-m", aPath a, aPath b, temp]
 interpretOp (Sequence a b) temp =
@@ -105,13 +106,13 @@ decodeFile Mp3 input output =
 decodeFile Flac input output =
     execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
 
--- | Build a shell 'Audio' object without a useable 'aPath'.
--- This way it can be used both in pure and impure code.
+-- | Build a 'Audio' object out of an 'Op'.
+-- It can be used both in pure and impure code, even if the associated file does
+-- not exist.
 audioMeta :: Op -> Audio
 audioMeta op =
     Audio
         { aCache = makeCo (opDescr op) (map aCache $ opDeps op) (interpretOp op)
-        , aPath = error "audioMeta: no temp file"
         , aBPM = opBPM op
         , aStart = opStart op
         }
@@ -120,14 +121,14 @@ audioMeta op =
 run :: Prog Audio -> IO Audio
 run (Prog (Pure x)) = return x
 run (Prog (Free (Bind op k))) = do
-    let am = audioMeta op
-        co = aCache am
+    let a = audioMeta op
+        co = aCache a
     hit <- isCached co
     let cachedMsg = if hit then "[ HIT ]" else "[ EXP ]"
         msg = cachedMsg ++ " Running op: " ++ showShortOp op
     putStrLn msg
-    temp <- cached co
-    run $ Prog $ k $ am { aPath = temp }
+    _ <- cached co
+    run $ Prog $ k a
 
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]

@@ -48,7 +48,6 @@ data SoxFX = SoxTempo Double
 -- This corresponds to an intermediate WAV file with
 -- metadata such as BPM or start time.
 data Audio = Audio { aCache :: CObject
-                   , aPath :: FilePath -- ^ Where this track is stored
                    , aBPM :: Maybe BPM -- ^ Retrieve the BPM of an audio track
                    , aStart :: Maybe Duration -- ^ Retrieve the start time of an audio track
                    }

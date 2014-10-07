@@ -6,6 +6,7 @@ module Music.TMC.Cache
     , cached
     , isCached
     , makeCo
+    , coFile
     ) where
 
 import Control.Monad
@@ -43,6 +44,7 @@ coHash co =
 toHex :: B.ByteString -> B.ByteString
 toHex bytes = fromString $ concatMap (printf "%02x") (B.unpack bytes)
 
+-- | Where a cached object is stored.
 coFile :: CObject -> FilePath
 coFile co = "/tmp/" ++ byteStringToString (coHash co) ++ ".wav"
 
