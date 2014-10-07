@@ -79,28 +79,15 @@ silence dur = Prog $ liftF $ (Bind$ Silence dur) id
 
 -- | Join tracks (play one after another).
 sequenceAudio :: Audio -> Audio -> Prog Audio
-sequenceAudio a b = Prog $ liftF $ Bind (Sequence a b) id
+sequenceAudio a b = seqList [a, b]
 
 -- | An extension of 'sequenceAudio' to lists.
 seqList :: [Audio] -> Prog Audio
-seqList [] = error "seqList"
-seqList [a] = return a
-seqList (a:as) = do
-    r <- seqList as
-    sequenceAudio a r
+seqList l = Prog $ liftF $ Bind (Sequence l) id
 
 -- | N times the same sound.
 replicateAudio :: Int -> Audio -> Prog Audio
-replicateAudio n _ | n < 0 = error "replicateAudio"
-replicateAudio 0 _ = error "replicateAudio 0"
-replicateAudio 1 a = return a
-replicateAudio n a = do
-    let (q, r) = n `quotRem` 2
-    half <- replicateAudio q a
-    base <- sequenceAudio half half
-    if r == 1
-        then sequenceAudio a base
-        else return base
+replicateAudio n a = seqList $ replicate n a
 
 -- | Take only part of a track.
 cutAudio :: Duration -- ^ Start

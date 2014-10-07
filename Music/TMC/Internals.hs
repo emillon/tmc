@@ -36,7 +36,7 @@ data Op = File Track
         | Silence Duration
         | OpSoxFX SoxFX Audio
         | Merge Audio Audio
-        | Sequence Audio Audio
+        | Sequence [Audio]
 
 -- | A SoX effect.
 data SoxFX = SoxTempo Double

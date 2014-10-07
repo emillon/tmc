@@ -31,7 +31,7 @@ opBPM (Synth _ _) = Nothing
 opBPM (Silence _) = Nothing
 opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
 opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
-opBPM (Sequence _ _) = Nothing -- could optimize when a & b are close
+opBPM (Sequence _) = Nothing -- could optimize when all in the list are close
 
 soxBPM :: SoxFX -> BPM -> BPM
 soxBPM (SoxTempo ratio) (BPM x) = BPM $ ratio * x
@@ -47,7 +47,7 @@ opStart (OpSoxFX sfx a) = do
     sa <- aStart a
     soxStart sfx sa
 opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
-opStart (Sequence a _b) = aStart a
+opStart (Sequence _) = Nothing -- could optimize when all in the list are close
 
 soxStart :: SoxFX -> Duration -> Maybe Duration
 soxStart (SoxTempo ratio) (Duration x) = Just $ Duration $ ratio * x
@@ -61,7 +61,7 @@ opDescr (Synth freq dur) = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
 opDescr (Silence dur) = "Silence (" ++ show dur ++ ")"
 opDescr (OpSoxFX sfx _) = "SoxFX (" ++ unwords (soxCompile sfx) ++ ")"
 opDescr (Merge _ _) = "Merge"
-opDescr (Sequence _ _) = "Sequence"
+opDescr (Sequence _) = "Sequence"
 
 opDeps :: Op -> [Audio]
 opDeps (File _) = []
@@ -69,7 +69,7 @@ opDeps (Synth _ _) = []
 opDeps (Silence _) = []
 opDeps (OpSoxFX _ a) = [a]
 opDeps (Merge a b) = [a, b]
-opDeps (Sequence a b) = [a, b]
+opDeps (Sequence l) = l
 
 soxCompile :: SoxFX -> [String]
 soxCompile (SoxTempo ratio) = ["tempo", showD ratio]
@@ -86,7 +86,7 @@ showShortOp (Synth freq dur) = "synth " ++ show freq ++ " " ++ show dur
 showShortOp (Silence dur) = "silence " ++ show dur
 showShortOp (OpSoxFX fx _) = "soxfx " ++ head (soxCompile fx)
 showShortOp (Merge _ _) = "merge"
-showShortOp (Sequence _ _) = "sequence"
+showShortOp (Sequence _) = "sequence"
 
 execCommand :: String -> [String] -> IO ()
 execCommand cmd args = do
@@ -98,8 +98,8 @@ interpretOp (OpSoxFX fx a) temp =
     execCommand "sox" $ [aPath a, temp] ++ soxCompile fx
 interpretOp (Merge a b) temp =
     execCommand "sox" ["-m", aPath a, aPath b, temp]
-interpretOp (Sequence a b) temp =
-    execCommand "sox" [aPath a, aPath b, temp]
+interpretOp (Sequence l) temp =
+    execCommand "sox" $ map aPath l ++ [temp]
 interpretOp (File (Track { trackFormat = fmt, trackPath = path })) temp =
     decodeFile fmt path temp
 interpretOp (Synth (Frequency freq) (Duration dur)) temp =
