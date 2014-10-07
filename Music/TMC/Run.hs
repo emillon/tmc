@@ -161,8 +161,9 @@ runWithM (Prog (Free (Bind op k))) = do
     let a = audioMeta op
         co = aCache a
     hit <- lift $ isCached co
+    destMsg <- infoMsg $ " (" ++ shortHash co ++ ")"
     let cachedMsg = if hit then "[ HIT ]" else "[ EXP ]"
-        msg = cachedMsg ++ " Running op: " ++ showShortOp op
+        msg = cachedMsg ++ destMsg ++ " Running op: " ++ showShortOp op
     noticeM msg
     _ <- lift $ cached co
     runWithM $ Prog $ k a

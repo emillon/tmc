@@ -5,6 +5,7 @@ module Music.TMC.Logger
     ( LogLevel(..)
     , MonadLogger(..)
     , noticeM
+    , infoMsg
     ) where
 
 import Control.Monad.Reader
@@ -17,11 +18,22 @@ data LogLevel = LogInfo
     deriving (Eq, Ord)
 
 -- | Monads that can log stuff.
-class MonadLogger m where
+class Monad m => MonadLogger m where
     getLogLevel :: m LogLevel
+
+isLoggerActive :: MonadLogger m => LogLevel -> m Bool
+isLoggerActive targetLevel = do
+    ll <- getLogLevel
+    return $ ll <= targetLevel
 
 -- | Log a message at the 'LogNotice' level.
 noticeM :: (MonadLogger m, MonadIO m) => String -> m ()
 noticeM msg = do
-    ll <- getLogLevel
-    when (ll <= LogNotice) $ liftIO $ putStrLn msg
+    act <- isLoggerActive LogNotice
+    when act $ liftIO $ putStrLn msg
+
+-- | Build an optional message. Empty if log level is above 'LogInfo'.
+infoMsg :: MonadLogger m => String -> m String
+infoMsg msg = do
+    act <- isLoggerActive LogInfo
+    return $ if act then msg else ""

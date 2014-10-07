@@ -7,6 +7,7 @@ module Music.TMC.Cache
     , isCached
     , makeCo
     , coFile
+    , shortHash
     ) where
 
 import Control.Monad
@@ -75,3 +76,7 @@ makeCo descr deps builder =
             , coDeps = map coHash deps
             , coBuild = COBuilder builder
             }
+
+-- | Short representation of a cached object. May not be unique.
+shortHash :: CObject -> String
+shortHash = take 6 . byteStringToString . coHash
