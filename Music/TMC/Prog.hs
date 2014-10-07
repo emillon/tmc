@@ -6,6 +6,7 @@ module Music.TMC.Prog
     , aPath
     , aBPM
     , aStart
+    , noAudio
       -- * The DSL
       -- ** Type
     , Prog
@@ -31,6 +32,15 @@ import Control.Monad.Free
 import Music.TMC.Cache
 import Music.TMC.Internals
 import Music.TMC.Types
+
+-- | A dummy audio track.
+noAudio :: Audio
+noAudio =
+    Audio
+        { aCache = error "noAudio cache"
+        , aBPM = error "noAudio BPM"
+        , aStart = error "noAudio start"
+        }
 
 -- | Where this track is stored.
 aPath :: Audio -> FilePath
