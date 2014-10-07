@@ -32,6 +32,7 @@ optimizeTests = TestList $ concatMap makeOptTC tcs
               , (tc2, 3, 2)
               , (tc3, 1, 1)
               , (tc4, 1, 1)
+              , (tc5, 2, 1)
               ]
         tc1 = do
             x <- shiftAudio da noAudio
@@ -42,3 +43,6 @@ optimizeTests = TestList $ concatMap makeOptTC tcs
             shiftAudio db y
         tc3 = replicateAudio 16 noAudio
         tc4 = seqList $ replicate 16 noAudio
+        tc5 = do
+            x <- sequenceAudio noAudio noAudio
+            sequenceAudio x noAudio

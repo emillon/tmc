@@ -15,7 +15,7 @@ optimize :: Prog a -> Prog a
 optimize (Prog p) = Prog $ optimizeF p
 
 optimizeF :: Free ProgF a -> Free ProgF a
-optimizeF = applyOpt optimizePads
+optimizeF = applyOpt optimizePads . applyOpt optimizeSeqs
 
 type OptStep a = Free ProgF a -> Maybe (Free ProgF a)
 
@@ -37,3 +37,14 @@ optRest (Free x) = Free $ fmap optimizeF x
 extractPad :: Free ProgF a -> Maybe (Duration, Audio, Audio -> Free ProgF a)
 extractPad (Free (Bind (OpSoxFX (SoxPad d) a) k)) = Just (d, a, k)
 extractPad _ = Nothing
+
+optimizeSeqs :: OptStep a
+optimizeSeqs p = do
+    (l1, k0) <- extractSeq p
+    (l2, k) <- extractSeq $ k0 undefined
+    let l = l1 ++ l2
+    return $ Free (Bind (Sequence l) k)
+
+extractSeq :: Free ProgF a -> Maybe ([Audio], Audio -> Free ProgF a)
+extractSeq (Free (Bind (Sequence l) k)) = Just (l, k)
+extractSeq _ = Nothing
