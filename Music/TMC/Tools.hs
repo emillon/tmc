@@ -4,6 +4,7 @@ module Music.TMC.Tools
     ( play
     , warpTo
     , alignTo
+    , shiftBeats
     , metronome
     , checkBPM
     ) where
@@ -32,16 +33,22 @@ warpTo dest src =
 -- with that of another track.
 alignTo :: Audio -- ^ Destination
         -> Audio -- ^ Source
-        -> Int -- ^ Beat offset
         -> Prog Audio
-alignTo dest src beatOff =
+alignTo dest src =
     shiftAudio shiftAmount src
         where
             shiftAmount = fromMaybe (error "alignTo: missing a start time or BPM") $ do
-                bpm <- aBPM dest
                 destStart <- aStart dest
                 srcStart <- aStart src
-                return $ durationAdd (durationDiff destStart srcStart) (durationTimes beatOff (beatLen bpm))
+                return $ durationDiff destStart srcStart
+
+-- | Shift a track N beats.
+shiftBeats :: Int -> Audio -> Prog Audio
+shiftBeats nbeats a =
+    shiftAudio shiftAmount a
+        where
+            bpm = fromMaybe (error "shiftBeats: need a BPM on audio track") (aBPM a)
+            shiftAmount = durationTimes nbeats (beatLen bpm)
 
 -- | Play audio.
 play :: Audio -> IO ()

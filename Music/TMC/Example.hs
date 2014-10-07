@@ -38,7 +38,8 @@ exampleBootleg = do
     acap <- audioTrack katy
     instr <- audioTrack walkOnBy
     warpedAcap <- warpTo instr acap
-    shiftedAcap <- alignTo instr warpedAcap 16
+    alignedAcap <- alignTo instr warpedAcap
+    shiftedAcap <- shiftBeats 16 alignedAcap
     gainAcap <- gainAudio (Gain (-3)) shiftedAcap
     mergeAudio instr gainAcap
 
