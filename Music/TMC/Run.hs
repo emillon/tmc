@@ -1,7 +1,11 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 -- | The TMC interpreter.
 
 module Music.TMC.Run
     ( run
+    , runVerbose
+    , runWith
     , steps
     , audioMeta
     )
@@ -10,11 +14,14 @@ module Music.TMC.Run
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Free
+import Control.Monad.Reader
+import Data.Default
 import System.Process
 import Text.Printf
 
 import Music.TMC.Cache
 import Music.TMC.Internals
+import Music.TMC.Logger
 import Music.TMC.Prog
 import Music.TMC.Types
 
@@ -117,18 +124,48 @@ audioMeta op =
         , aStart = opStart op
         }
 
+-- | How to run a program.
+data RunOptions = RunOptions
+    { logLevel :: LogLevel
+    }
+
+type Exec a = ReaderT RunOptions IO a
+
+instance Monad m => MonadLogger (ReaderT RunOptions m)  where
+    getLogLevel = asks logLevel
+
+instance Default RunOptions where
+    def = RunOptions
+            { logLevel = LogNotice
+            }
+
 -- | Execute the program: invoke tools that actually do the manipulation.
 run :: Prog Audio -> IO Audio
-run (Prog (Pure x)) = return x
-run (Prog (Free (Bind op k))) = do
+run = runWith def
+
+-- | Execute the program in verbose mode.
+runVerbose :: Prog Audio -> IO Audio
+runVerbose =
+    runWith opts
+        where
+            opts = def { logLevel = LogInfo }
+
+-- | A variant of 'run' when you can pass options.
+runWith :: RunOptions -> Prog Audio -> IO Audio
+runWith opts prog =
+    runReaderT (runWithM prog) opts
+
+runWithM :: Prog a -> Exec a
+runWithM (Prog (Pure x)) = return x
+runWithM (Prog (Free (Bind op k))) = do
     let a = audioMeta op
         co = aCache a
-    hit <- isCached co
+    hit <- lift $ isCached co
     let cachedMsg = if hit then "[ HIT ]" else "[ EXP ]"
         msg = cachedMsg ++ " Running op: " ++ showShortOp op
-    putStrLn msg
-    _ <- cached co
-    run $ Prog $ k a
+    noticeM msg
+    _ <- lift $ cached co
+    runWithM $ Prog $ k a
 
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]

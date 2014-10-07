@@ -13,11 +13,14 @@ library
                      Music.TMC.Tools
                      Music.TMC.Types
     other-modules: Music.TMC.Internals
+                   Music.TMC.Logger
     build-depends: base
                  , bytestring
                  , cryptohash
+                 , data-default
                  , directory
                  , free
+                 , mtl
                  , process
 test-suite hunittests
     type: exitcode-stdio-1.0
