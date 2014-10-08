@@ -3,6 +3,7 @@
 
 module Music.TMC.Logger
     ( LogLevel(..)
+    , moreVerbose
     , MonadLogger(..)
     , noticeM
     , infoMsg
@@ -18,6 +19,14 @@ data LogLevel = LogDebug
               | LogWarning
               | LogError
     deriving (Eq, Ord)
+
+-- | Return the 'LogLevel' that is just more verbose.
+moreVerbose :: LogLevel -> LogLevel
+moreVerbose LogDebug = LogDebug
+moreVerbose LogInfo = LogDebug
+moreVerbose LogNotice = LogInfo
+moreVerbose LogWarning = LogNotice
+moreVerbose LogError = LogWarning
 
 -- | Monads that can log stuff.
 class Monad m => MonadLogger m where

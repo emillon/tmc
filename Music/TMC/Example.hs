@@ -10,7 +10,6 @@ module Music.TMC.Example
     ) where
 
 import Music.TMC.Prog
-import Music.TMC.Run
 import Music.TMC.Tools
 import Music.TMC.Types
 
@@ -45,7 +44,4 @@ exampleBootleg = do
 
 -- | Compile the bootleg.
 main :: IO ()
-main = do
-    mapM_ putStrLn $ steps exampleBootleg
-    f <- run exampleBootleg
-    print f
+main = tmcMain exampleBootleg

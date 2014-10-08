@@ -7,13 +7,19 @@ module Music.TMC.Tools
     , shiftBeats
     , metronome
     , checkBPM
+    , tmcMain
     ) where
 
 import Control.Monad
+import Data.Default
 import Data.Maybe
+import System.Console.GetOpt
+import System.Environment
 import System.Process
 
+import Music.TMC.Logger
 import Music.TMC.Prog
+import Music.TMC.Run
 import Music.TMC.Types
 
 -- | Change the tempo of a track (using 'warpAudio') so that it has the same
@@ -82,3 +88,32 @@ checkBPM track = do
     m <- metronome (trackBPM track) 16
     s <- shiftAudio (trackStart track) m
     mergeAudio a s
+
+data Flag = FlagVerbose
+          | FlagOptimize
+
+options :: [OptDescr Flag]
+options =
+    [ Option ['v'] ["verbose"] (NoArg FlagVerbose) "be more verbose"
+    , Option ['O'] ["optimize"] (NoArg FlagOptimize) "optimize the program first"
+    ]
+
+parseArgs :: [String] -> IO [Flag]
+parseArgs argv =
+    case getOpt Permute options argv of
+        (o, [], []) -> return o
+        (_, _, []) -> ioError $ userError "I don't no what to do with these non-options"
+        (_,_,errs) -> ioError $ userError $ concat errs ++ usageInfo header options
+     where header = "Usage: ic [OPTION...] files..."
+
+interpretFlag :: Flag -> RunOptions -> RunOptions
+interpretFlag FlagVerbose ro = ro { optLogLevel = moreVerbose $ optLogLevel ro }
+interpretFlag FlagOptimize ro = ro { optOptimize = True }
+
+-- | A convenient 'main' function that parses arguments on the command line.
+tmcMain :: Prog Audio -> IO ()
+tmcMain p = do
+    argv <- getArgs
+    flags <- parseArgs argv
+    let opts = foldr interpretFlag def flags
+    void $ runWith opts p

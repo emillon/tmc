@@ -23,6 +23,7 @@ import Text.Printf
 import Music.TMC.Cache
 import Music.TMC.Internals
 import Music.TMC.Logger
+import Music.TMC.Optimize
 import Music.TMC.Prog
 import Music.TMC.Types
 
@@ -131,17 +132,19 @@ audioMeta op showOutput =
 
 -- | How to run a program.
 data RunOptions = RunOptions
-    { logLevel :: LogLevel
+    { optLogLevel :: LogLevel
+    , optOptimize :: Bool
     }
 
 type Exec a = ReaderT RunOptions IO a
 
 instance Monad m => MonadLogger (ReaderT RunOptions m)  where
-    getLogLevel = asks logLevel
+    getLogLevel = asks optLogLevel
 
 instance Default RunOptions where
     def = RunOptions
-            { logLevel = LogNotice
+            { optLogLevel = LogNotice
+            , optOptimize = False
             }
 
 -- | Execute the program: invoke tools that actually do the manipulation.
@@ -153,12 +156,16 @@ runVerbose :: Prog Audio -> IO Audio
 runVerbose =
     runWith opts
         where
-            opts = def { logLevel = LogInfo }
+            opts = def { optLogLevel = LogInfo }
 
 -- | A variant of 'run' when you can pass options.
 runWith :: RunOptions -> Prog Audio -> IO Audio
-runWith opts prog =
+runWith opts baseProg =
     runReaderT (runWithM prog) opts
+        where
+            prog = maybeOpt (optOptimize opts) baseProg
+            maybeOpt True = optimize
+            maybeOpt False = id
 
 runWithM :: Prog a -> Exec a
 runWithM (Prog (Pure x)) = return x
