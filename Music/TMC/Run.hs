@@ -17,6 +17,7 @@ import Control.Monad
 import Control.Monad.Free
 import Control.Monad.Reader
 import Data.Default
+import System.Exit
 import System.Process
 import Text.Printf
 
@@ -94,7 +95,8 @@ execCommand :: Bool -> String -> [String] -> IO ()
 execCommand verb cmd args = do
     let h = if verb then Inherit else CreatePipe
     (_, _, _, p) <- createProcess (proc cmd args) { std_out = h, std_err = h }
-    void $ waitForProcess p
+    exitCode <- waitForProcess p
+    unless (exitCode == ExitSuccess) $ error $ "Command failed: " ++ unwords (cmd:args)
 
 interpretOp :: Bool -> Op -> FilePath -> IO ()
 interpretOp verb (OpSoxFX fx a) temp =
