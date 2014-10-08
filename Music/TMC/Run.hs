@@ -6,6 +6,7 @@ module Music.TMC.Run
     ( run
     , runVerbose
     , runWith
+    , RunOptions(..)
     , steps
     , audioMeta
     )
@@ -88,38 +89,42 @@ showShortOp (OpSoxFX fx _) = "soxfx " ++ head (soxCompile fx)
 showShortOp (Merge _ _) = "merge"
 showShortOp (Sequence _) = "sequence"
 
-execCommand :: String -> [String] -> IO ()
-execCommand cmd args = do
-    (_, _, _, p) <- createProcess (proc cmd args) { std_out = CreatePipe, std_err = CreatePipe }
+execCommand :: Bool -> String -> [String] -> IO ()
+execCommand verb cmd args = do
+    (_, _, _, p) <- createProcess (proc cmd args) { std_out = h, std_err = h }
     void $ waitForProcess p
+        where
+            handle True = Inherit
+            handle False = CreatePipe
+            h = handle verb
 
-interpretOp :: Op -> FilePath -> IO ()
-interpretOp (OpSoxFX fx a) temp =
-    execCommand "sox" $ [aPath a, temp] ++ soxCompile fx
-interpretOp (Merge a b) temp =
-    execCommand "sox" ["-m", aPath a, aPath b, temp]
-interpretOp (Sequence l) temp =
-    execCommand "sox" $ map aPath l ++ [temp]
-interpretOp (File (Track { trackFormat = fmt, trackPath = path })) temp =
-    decodeFile fmt path temp
-interpretOp (Synth (Frequency freq) (Duration dur)) temp =
-    execCommand "sox" ["-n", "-r", "44100", temp, "synth", showD dur, "sine", showD freq]
-interpretOp (Silence (Duration dur)) temp =
-    execCommand "sox" ["-n", "-r", "44100", temp, "trim", "0", showD dur]
+interpretOp :: Bool -> Op -> FilePath -> IO ()
+interpretOp verb (OpSoxFX fx a) temp =
+    execCommand verb "sox" $ [aPath a, temp] ++ soxCompile fx
+interpretOp verb (Merge a b) temp =
+    execCommand verb "sox" ["-m", aPath a, aPath b, temp]
+interpretOp verb (Sequence l) temp =
+    execCommand verb "sox" $ map aPath l ++ [temp]
+interpretOp verb (File (Track { trackFormat = fmt, trackPath = path })) temp =
+    decodeFile verb fmt path temp
+interpretOp verb (Synth (Frequency freq) (Duration dur)) temp =
+    execCommand verb "sox" ["-n", "-r", "44100", temp, "synth", showD dur, "sine", showD freq]
+interpretOp verb (Silence (Duration dur)) temp =
+    execCommand verb "sox" ["-n", "-r", "44100", temp, "trim", "0", showD dur]
 
-decodeFile :: AudioType -> FilePath -> FilePath -> IO ()
-decodeFile Mp3 input output =
-    execCommand "lame" ["--decode", input, output]
-decodeFile Flac input output =
-    execCommand "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
+decodeFile :: Bool -> AudioType -> FilePath -> FilePath -> IO ()
+decodeFile verb Mp3 input output =
+    execCommand verb "lame" ["--decode", input, output]
+decodeFile verb Flac input output =
+    execCommand verb "flac" ["-f", "--decode", "--no-preserve-modtime", input, "-o", output]
 
 -- | Build a 'Audio' object out of an 'Op'.
 -- It can be used both in pure and impure code, even if the associated file does
 -- not exist.
-audioMeta :: Op -> Audio
-audioMeta op =
+audioMeta :: Op -> Bool -> Audio
+audioMeta op showOutput =
     Audio
-        { aCache = makeCo (opDescr op) (map aCache $ opDeps op) (interpretOp op)
+        { aCache = makeCo (opDescr op) (map aCache $ opDeps op) (interpretOp showOutput op)
         , aBPM = opBPM op
         , aStart = opStart op
         }
@@ -158,7 +163,8 @@ runWith opts prog =
 runWithM :: Prog a -> Exec a
 runWithM (Prog (Pure x)) = return x
 runWithM (Prog (Free (Bind op k))) = do
-    let a = audioMeta op
+    showOutput <- isLoggerActive LogDebug
+    let a = audioMeta op showOutput
         co = aCache a
     hit <- lift $ isCached co
     destMsg <- infoMsg $ " (" ++ shortHash co ++ ")"
@@ -171,4 +177,4 @@ runWithM (Prog (Free (Bind op k))) = do
 -- | A pure version of 'run': just return the steps that will be done.
 steps :: Prog Audio -> [String]
 steps (Prog (Pure _)) = []
-steps (Prog (Free (Bind op k))) = showShortOp op : steps (Prog (k (audioMeta op)))
+steps (Prog (Free (Bind op k))) = showShortOp op : steps (Prog (k (audioMeta op False)))

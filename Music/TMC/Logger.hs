@@ -6,12 +6,14 @@ module Music.TMC.Logger
     , MonadLogger(..)
     , noticeM
     , infoMsg
+    , isLoggerActive
     ) where
 
 import Control.Monad.Reader
 
 -- | How important is a message.
-data LogLevel = LogInfo
+data LogLevel = LogDebug
+              | LogInfo
               | LogNotice
               | LogWarning
               | LogError
@@ -21,6 +23,7 @@ data LogLevel = LogInfo
 class Monad m => MonadLogger m where
     getLogLevel :: m LogLevel
 
+-- | Determine if the current level is lower than this level.
 isLoggerActive :: MonadLogger m => LogLevel -> m Bool
 isLoggerActive targetLevel = do
     ll <- getLogLevel
