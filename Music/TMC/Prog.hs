@@ -7,6 +7,7 @@ module Music.TMC.Prog
     , aBPM
     , aStart
     , noAudio
+    , setBPM
       -- * The DSL
       -- ** Type
     , Prog
@@ -45,6 +46,10 @@ noAudio =
 -- | Where this track is stored.
 aPath :: Audio -> FilePath
 aPath = coFile . aCache
+
+-- | Override BPM info for an 'Audio' object.
+setBPM :: Maybe BPM -> Audio -> Audio
+setBPM bpm a = a { aBPM = bpm }
 
 soxFX :: SoxFX -> Audio -> Prog Audio
 soxFX fx a = Prog $ liftF $ Bind (OpSoxFX fx a) id

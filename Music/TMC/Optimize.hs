@@ -7,12 +7,16 @@ module Music.TMC.Optimize
 import Control.Monad.Free
 import Data.Maybe
 import Music.TMC.Internals
+import Music.TMC.Prog
 import Music.TMC.Types
 
 -- | This value can be passed to continuations, but should not be actually
 -- evaluated.
-optVal :: Audio
-optVal = error "optVal evaluated"
+optVal :: String -> Audio
+optVal key =
+    setBPM (error msgBPM) noAudio
+        where
+            msgBPM = "optVal (in " ++ key ++ ") : BPM evaluated"
 
 -- | Optimize programs so that they can be compiled in less steps.
 -- (or at worst, do nothing)
@@ -32,7 +36,7 @@ applyOpt step p =
 optimizePads :: OptStep a
 optimizePads p = do
     (d1, a, k0) <- extractPad p
-    (d2, _, k) <- extractPad (k0 optVal)
+    (d2, _, k) <- extractPad $ k0 $ optVal "optimizePads"
     return $ Free (Bind (OpSoxFX (SoxPad (durationAdd d1 d2)) a) k)
 
 optRest :: Free ProgF a -> Free ProgF a
@@ -46,7 +50,7 @@ extractPad _ = Nothing
 optimizeSeqs :: OptStep a
 optimizeSeqs p = do
     (l1, k0) <- extractSeq p
-    (l2, k) <- extractSeq $ k0 optVal
+    (l2, k) <- extractSeq $ k0 $ optVal "optimizeSeqs"
     let l = l1 ++ l2
     return $ Free (Bind (Sequence l) k)
 
