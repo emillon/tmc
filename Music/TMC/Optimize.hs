@@ -35,16 +35,18 @@ applyOpt step p =
 -- | pad d1 (pad d2) A = pad (d1 + d2) A
 optimizePads :: OptStep a
 optimizePads p = do
-    (d1, a, k0) <- extractPad p
-    (d2, _, k) <- extractPad $ k0 $ optVal "optimizePads"
+    (op, d1, a, k0) <- extractPad p
+    let bpm = opBPM op
+        a2 = setBPM bpm $ optVal "optimizePads"
+    (_, d2, _, k) <- extractPad $ k0 a2
     return $ Free (Bind (OpSoxFX (SoxPad (durationAdd d1 d2)) a) k)
 
 optRest :: Free ProgF a -> Free ProgF a
 optRest p@(Pure _) = p
 optRest (Free x) = Free $ fmap optimizeF x
 
-extractPad :: Free ProgF a -> Maybe (Duration, Audio, Audio -> Free ProgF a)
-extractPad (Free (Bind (OpSoxFX (SoxPad d) a) k)) = Just (d, a, k)
+extractPad :: Free ProgF a -> Maybe (Op, Duration, Audio, Audio -> Free ProgF a)
+extractPad (Free (Bind op@(OpSoxFX (SoxPad d) a) k)) = Just (op, d, a, k)
 extractPad _ = Nothing
 
 optimizeSeqs :: OptStep a

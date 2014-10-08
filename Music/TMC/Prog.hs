@@ -26,8 +26,12 @@ module Music.TMC.Prog
     , seqList
     , replicateAudio
     , cutAudio
+      -- ** Tools on operations
+    , opBPM
+    , opStart
     ) where
 
+import Control.Applicative
 import Control.Monad.Free
 
 import Music.TMC.Cache
@@ -99,3 +103,35 @@ cutAudio :: Duration -- ^ Start
          -> Duration -- ^ End
          -> Audio -> Prog Audio
 cutAudio start end = soxFX $ SoxTrim start end
+
+-- | Compute the BPM associated to the output of an operation.
+opBPM :: Op -> Maybe BPM
+opBPM (File track) = Just $ trackBPM track
+opBPM (Synth _ _) = Nothing
+opBPM (Silence _) = Nothing
+opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
+opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
+opBPM (Sequence _) = Nothing -- could optimize when all in the list are close
+
+soxBPM :: SoxFX -> BPM -> BPM
+soxBPM (SoxTempo ratio) (BPM x) = BPM $ ratio * x
+soxBPM (SoxPad _) x = x
+soxBPM (SoxGain _) x = x
+soxBPM (SoxTrim _ _) x = x
+
+-- | Compute the Start time associated to the output of an operation.
+opStart :: Op -> Maybe Duration
+opStart (File track) = Just $ trackStart track
+opStart (Synth _ _) = Just $ Duration 0
+opStart (Silence _) = Nothing
+opStart (OpSoxFX sfx a) = do
+    sa <- aStart a
+    soxStart sfx sa
+opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
+opStart (Sequence _) = Nothing -- could optimize when all in the list are close
+
+soxStart :: SoxFX -> Duration -> Maybe Duration
+soxStart (SoxTempo ratio) (Duration x) = Just $ Duration $ ratio * x
+soxStart (SoxPad shift) x = Just $ durationAdd shift x
+soxStart (SoxGain _) x = Just x
+soxStart (SoxTrim _ _) _ = Nothing -- maybe it's possible to compute it

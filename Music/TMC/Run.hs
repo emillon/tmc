@@ -12,7 +12,6 @@ module Music.TMC.Run
     )
     where
 
-import Control.Applicative
 import Control.Monad
 import Control.Monad.Free
 import Control.Monad.Reader
@@ -27,36 +26,6 @@ import Music.TMC.Logger
 import Music.TMC.Optimize
 import Music.TMC.Prog
 import Music.TMC.Types
-
-opBPM :: Op -> Maybe BPM
-opBPM (File track) = Just $ trackBPM track
-opBPM (Synth _ _) = Nothing
-opBPM (Silence _) = Nothing
-opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
-opBPM (Merge a _b) = aBPM a -- we assume that we're mixing similar tracks
-opBPM (Sequence _) = Nothing -- could optimize when all in the list are close
-
-soxBPM :: SoxFX -> BPM -> BPM
-soxBPM (SoxTempo ratio) (BPM x) = BPM $ ratio * x
-soxBPM (SoxPad _) x = x
-soxBPM (SoxGain _) x = x
-soxBPM (SoxTrim _ _) x = x
-
-opStart :: Op -> Maybe Duration
-opStart (File track) = Just $ trackStart track
-opStart (Synth _ _) = Just $ Duration 0
-opStart (Silence _) = Nothing
-opStart (OpSoxFX sfx a) = do
-    sa <- aStart a
-    soxStart sfx sa
-opStart (Merge a _b) = aStart a -- we assume that we're mixing aligned tracks
-opStart (Sequence _) = Nothing -- could optimize when all in the list are close
-
-soxStart :: SoxFX -> Duration -> Maybe Duration
-soxStart (SoxTempo ratio) (Duration x) = Just $ Duration $ ratio * x
-soxStart (SoxPad shift) x = Just $ durationAdd shift x
-soxStart (SoxGain _) x = Just x
-soxStart (SoxTrim _ _) _ = Nothing -- maybe it's possible to compute it
 
 opDescr :: Op -> String
 opDescr (File a) = "File (" ++ show a ++ ")"
