@@ -29,6 +29,7 @@ import Music.TMC.Types
 
 opDescr :: Op -> String
 opDescr (File a) = "File (" ++ show a ++ ")"
+opDescr (Command cmd) = "Command (" ++ show (cmd "FILE") ++ ")"
 opDescr (Synth freq dur) = "Synth (" ++ show freq ++ ", " ++ show dur ++ ")"
 opDescr (Silence dur) = "Silence (" ++ show dur ++ ")"
 opDescr (OpSoxFX sfx _) = "SoxFX (" ++ unwords (soxCompile sfx) ++ ")"
@@ -37,6 +38,7 @@ opDescr (Sequence _) = "Sequence"
 
 opDeps :: Op -> [Audio]
 opDeps (File _) = []
+opDeps (Command _) = []
 opDeps (Synth _ _) = []
 opDeps (Silence _) = []
 opDeps (OpSoxFX _ a) = [a]
@@ -54,6 +56,7 @@ showD d = printf "%f" d
 
 showShortOp :: Op -> String
 showShortOp (File tr) = "decode " ++ show (trackFormat tr)
+showShortOp (Command cmd) = "cmd " ++ show (cmd "FILE")
 showShortOp (Synth freq dur) = "synth " ++ show freq ++ " " ++ show dur
 showShortOp (Silence dur) = "silence " ++ show dur
 showShortOp (OpSoxFX fx _) = "soxfx " ++ head (soxCompile fx)
@@ -76,6 +79,9 @@ interpretOp verb (Sequence l) temp =
     execCommand verb "sox" $ map aPath l ++ [temp]
 interpretOp verb (File (Track { trackFormat = fmt, trackPath = path })) temp =
     decodeFile verb fmt path temp
+interpretOp verb (Command cmd) temp =
+    let (cmdName, cmdArgs) = cmd temp in
+    execCommand verb cmdName cmdArgs
 interpretOp verb (Synth (Frequency freq) (Duration dur)) temp =
     execCommand verb "sox" ["-n", "-r", "44100", temp, "synth", showD dur, "sine", showD freq]
 interpretOp verb (Silence (Duration dur)) temp =

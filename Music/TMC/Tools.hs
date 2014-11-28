@@ -8,6 +8,7 @@ module Music.TMC.Tools
     , metronome
     , checkBPM
     , tmcMain
+    , youtubeDL
     ) where
 
 import Control.Monad
@@ -117,3 +118,18 @@ tmcMain p = do
     flags <- parseArgs argv
     let opts = foldr interpretFlag def flags
     void $ runWith opts p
+
+-- | Download a track using youtube-dl.
+youtubeDL :: String -- ^ A code or URL
+          -> Prog Audio
+youtubeDL url =
+    fromCommand $ \ temp ->
+        ( "youtube-dl"
+        , [ "--extract-audio"
+            , "--audio-format"
+            , "wav"
+            , url
+            , "-o"
+            , temp
+          ]
+        )

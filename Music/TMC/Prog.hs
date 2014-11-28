@@ -17,6 +17,7 @@ module Music.TMC.Prog
     , audioTrack
     , synth
     , silence
+    , fromCommand
       -- ** Operations
     , warpAudio
     , shiftAudio
@@ -86,6 +87,10 @@ synth freq dur = Prog $ liftF $ (Bind $ Synth freq dur) id
 silence :: Duration -> Prog Audio
 silence dur = Prog $ liftF $ (Bind$ Silence dur) id
 
+-- | Create audio from a command (it takes the temp filename as arg).
+fromCommand :: (String -> (String, [String])) -> Prog Audio
+fromCommand cmd = Prog $ liftF $ (Bind $ Command cmd) id
+
 -- | Join tracks (play one after another).
 sequenceAudio :: Audio -> Audio -> Prog Audio
 sequenceAudio a b = seqList [a, b]
@@ -107,6 +112,7 @@ cutAudio start end = soxFX $ SoxTrim start end
 -- | Compute the BPM associated to the output of an operation.
 opBPM :: Op -> Maybe BPM
 opBPM (File track) = Just $ trackBPM track
+opBPM (Command _) = Nothing
 opBPM (Synth _ _) = Nothing
 opBPM (Silence _) = Nothing
 opBPM (OpSoxFX sfx a) = soxBPM sfx <$> aBPM a
@@ -122,6 +128,7 @@ soxBPM (SoxTrim _ _) x = x
 -- | Compute the Start time associated to the output of an operation.
 opStart :: Op -> Maybe Duration
 opStart (File track) = Just $ trackStart track
+opStart (Command _) = Nothing
 opStart (Synth _ _) = Just $ Duration 0
 opStart (Silence _) = Nothing
 opStart (OpSoxFX sfx a) = do

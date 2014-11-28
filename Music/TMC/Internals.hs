@@ -32,6 +32,7 @@ newtype Prog a = Prog (Free ProgF a)
 -- | An operation on audio files.
 -- Basically it's the non-monadic interface behind 'Prog'.
 data Op = File Track
+        | Command (String -> (String, [String]))
         | Synth Frequency Duration
         | Silence Duration
         | OpSoxFX SoxFX Audio
